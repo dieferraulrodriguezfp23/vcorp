@@ -23,8 +23,10 @@ usage() {
 VirtualCorp SSH Key Generator
 
 Genera les claus SSH del laboratori VirtualCorp:
-  - vcorp_auditor
-  - sysadmin
+  - vcorp_sysadmin
+  - vcorp_mikrotik
+
+La clau vcorp_auditor.pub és la del professor i no es regenera.
 
 Opcions:
   -f    Força regeneració (esborra claus existents)
@@ -203,7 +205,9 @@ mkdir -p "${PUBLIC_KEY_DIR}"
 
 check_repo_for_private_keys
 
-generate_key "vcorp_auditor"
+# vcorp_auditor.pub is the professor's public key: never regenerate or
+# overwrite it from this script.
+#generate_key "vcorp_auditor"
 generate_key "vcorp_sysadmin"
 generate_mikrotik_key
 
@@ -218,16 +222,18 @@ VirtualCorp SSH Keys generades correctament
 ==================================================
 
 Privades (LOCAL):
-  ${PRIVATE_KEY_DIR}/vcorp_auditor
-  ${PRIVATE_KEY_DIR}/sysadmin
+  ${PRIVATE_KEY_DIR}/vcorp_sysadmin
+  ${PRIVATE_KEY_DIR}/vcorp_mikrotik
 
 Públiques (REPO):
-  ${PUBLIC_KEY_DIR}/vcorp_auditor.pub
-  ${PUBLIC_KEY_DIR}/sysadmin.pub
+  ${PUBLIC_KEY_DIR}/vcorp_sysadmin.pub
+  ${PUBLIC_KEY_DIR}/vcorp_mikrotik.pub
+  ${PUBLIC_KEY_DIR}/vcorp_auditor.pub  (clau del professor, no generada)
 
 Regles del laboratori:
   - NO pujar mai claus privades a GitHub
-  - sysadmin → administració + Ansible
+  - vcorp_sysadmin → administració + Ansible
+  - vcorp_mikrotik → alternativa RSA compatible amb RouterOS
   - vcorp_auditor → accés professor / auditoria
 
 ==================================================

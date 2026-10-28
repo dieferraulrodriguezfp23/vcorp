@@ -29,7 +29,7 @@ machines in VirtualBox.
 | `automation/ansible/` | Reserved for Ansible automation. It currently contains only `.gitkeep`, with no playbooks or inventory files. |
 | `automation/scripts/bootstrap/` | Bootstrap scripts for initial configuration of the virtual environment (before Ansible can be applied). |
 | `configs/ssh/` | Public SSH keys used by the bootstrap scripts and router accounts. Private keys are stored locally, usually in `~/.ssh`. |
-| `docs/` | Project documentation and the assignment statement. |
+| `docs/` | Project documentation: assignment statement, component reference, and the delegation 22 deployment report. |
 | `infrastructure/bash/` | Bash scripts that create VirtualBox routers, connect their network interfaces, and bootstrap RouterOS. |
 | `infrastructure/terraform/` | Reserved for Terraform configuration. It currently contains only `.gitkeep`, with no Terraform configuration files. |
 
@@ -48,7 +48,7 @@ machines in VirtualBox.
 
 | File | Functionality |
 | --- | --- |
-| `create_ssh_keys.sh` | Generates auditor, sysadmin, and MikroTik-compatible SSH key pairs. Private keys stay in the local SSH directory; public keys are copied to `configs/ssh/`. |
+| `create_ssh_keys.sh` | Generates the `vcorp_sysadmin` and MikroTik-compatible `vcorp_mikrotik` SSH key pairs. Private keys stay in the local SSH directory; public keys are copied to `configs/ssh/`. The professor's `vcorp_auditor.pub` key is not regenerated. |
 | `create_mikrotik_box.sh` | Legacy template-packaging helper. It downloads a CHR image if needed, configures a temporary RouterOS VM, and packages it. The active router deployment workflow does not use this helper. |
 
 ### `automation/ansible/` and `infrastructure/terraform/`
@@ -68,8 +68,8 @@ Each directory currently contains only a `.gitkeep` placeholder. No Ansible play
 | File | Functionality |
 | --- | --- |
 | `common.sh` | Sets shared VirtualBox, RouterOS, path, and key settings; defines logging helpers and an SSH availability check. |
-| `router_base.sh` | Provides functions to download the CHR image, create and configure router VMs and network interfaces, bootstrap RouterOS over SSH, and apply router configuration. |
-| `deploy_routers.sh` | Defines the four lab routers (`mikrotik0` through `mikrotik3`), their internal networks, IP addresses, gateways, and NAT settings, then creates them. |
+| `router_base.sh` | Provides functions to download the CHR image, create and configure router VMs and network interfaces, bootstrap RouterOS over SSH, install the student and auditor SSH keys, and apply router configuration. |
+| `deploy_routers.sh` | Defines the four lab routers (`router0` through `router3`) for delegation 22 (`10.22.0.0/16`), their internal networks, IP addresses, gateways, and NAT settings, then creates them. |
 | `del_vbox_group.sh` | Deletes VirtualBox VMs in a selected group and its subgroups. It supports selecting the router group or the root group. |
 
 ### `docs/`
@@ -77,6 +77,7 @@ Each directory currently contains only a `.gitkeep` placeholder. No Ansible play
 | File | Functionality |
 | --- | --- |
 | `components.md` | Describes the repository structure and the purpose of its main files. |
+| `deployment.md` | Describes the delegation 22 deployment, design decisions, validation results, and incidents. |
 | `statement.html` | Contains the assignment scenario, requirements, and project details. |
 
 ### `artifacts/images/chr/`

@@ -145,7 +145,7 @@ create_router_template() {
 /ip service enable ssh
 
 # create sysadmin user
-/user add name=sysadmin group=full password="Asdqwe!23" comment="sysadmin user" disabled=no
+/user add name=sysadmin group=full password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)" comment="sysadmin user" disabled=no
 
 EOF
 
@@ -478,6 +478,11 @@ attach_router_disk() {
 bootstrap_routeros() {
     local name="$1"
     local ssh_port="$2"
+    local sysadmin_password
+    local auditor_password
+
+    sysadmin_password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)"
+    auditor_password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)"
 
     log_info "Arrencant '$name' per fer el bootstrap"
 
@@ -503,10 +508,10 @@ bootstrap_routeros() {
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         -p "$ssh_port" \
-        admin@127.0.0.1 <<'EOF'
+        admin@127.0.0.1 <<EOF
 
 /ip service enable ssh
-/user add name=sysadmin group=full password="Asdqwe!23" comment="sysadmin user" disabled=no
+/user add name=sysadmin group=full password="$sysadmin_password" comment="sysadmin user" disabled=no
 
 EOF
 
@@ -546,6 +551,67 @@ EOF
         return 1
     fi
 
+
+    # -----------------------------------------------------
+    # Instal·lar clau pública de l'auditor
+    # -----------------------------------------------------
+
+    log_info "Injectant clau SSH de l'auditor"
+
+    scp \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -P "$ssh_port" \
+        "$AUDIT_PUB_KEY_FILE" \
+        admin@127.0.0.1:auditor.pub \
+        || return 1
+
+
+    ssh \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -p "$ssh_port" \
+        admin@127.0.0.1 <<EOF
+
+/user add name=vcorp_auditor group=full password="$auditor_password" comment="auditor user" disabled=no
+/user ssh-keys import user=vcorp_auditor public-key-file=auditor.pub
+
+EOF
+
+    if [[ $? -ne 0 ]]; then
+        log_err "No s'ha pogut instal·lar la clau SSH de l'auditor."
+        return 1
+    fi
+
+
+    # -----------------------------------------------------
+    # Validar accés per clau i desactivar contrasenyes
+    # -----------------------------------------------------
+
+    log_info "Comprovant accés amb clau de sysadmin"
+
+    ssh \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -i "$SYSADMIN_PRIVATE_KEY_FILE" \
+        -p "$ssh_port" \
+        "$SSH_USER@127.0.0.1" \
+        "/system identity print" >/dev/null || {
+            log_err "No s'ha pogut validar l'accés amb clau de sysadmin."
+            return 1
+        }
+
+    log_info "Desactivant autenticació per contrasenya"
+
+    ssh \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -i "$SYSADMIN_PRIVATE_KEY_FILE" \
+        -p "$ssh_port" \
+        "$SSH_USER@127.0.0.1" \
+        "/ip ssh set password-authentication=no" \
+        || return 1
+
     log_ok "Bootstrap de '$name' completat"
 }
 
@@ -567,18 +633,6 @@ generate_router_config() {
     : > "$rsc_file"
 
     # -----------------------------------------------------
-    # Default gateway
-    # -----------------------------------------------------
-
-    if [[ -n "$gateway" ]]; then
-
-        cat >> "$rsc_file" <<EOF
-/ip route add dst-address=0.0.0.0/0 gateway=$gateway
-EOF
-
-    fi
-
-    # -----------------------------------------------------
     # Adreces IP
     # -----------------------------------------------------
 
@@ -594,6 +648,19 @@ EOF
 EOF
 
     done
+
+    # -----------------------------------------------------
+    # Default gateway
+    # -----------------------------------------------------
+
+    if [[ -n "$gateway" ]]; then
+
+        cat >> "$rsc_file" <<EOF
+:if ([:len [/ip dhcp-client find]] > 0) do={/ip dhcp-client set [find] add-default-route=no}
+/ip route add dst-address=0.0.0.0/0 gateway=$gateway
+EOF
+
+    fi
 
     # -----------------------------------------------------
     # RIP & hostname
@@ -699,29 +766,11 @@ configure_final_network() {
     local nat="$2"
     local intnets_name="$3"
 
-    local -n ref_intnets="$intnets_name"
-
-    # Si es demana conservar NAT, no fem res.
-    if [[ "$nat" == true ]]; then
-        log_info "NIC1 es manté en mode NAT"
-        return 0
-    fi
-
-    # NIC1 serà la primera xarxa interna especificada.
-    local initial_intnet="${ref_intnets[0]}"
-
-    if [[ -z "$initial_intnet" ]]; then
-        log_warn "No s'ha especificat xarxa per a NIC1."
-        return 0
-    fi
-
-    log_info "NIC1 → xarxa interna definitiva '$initial_intnet'"
-
-    "$VBOXMANAGE_BIN" modifyvm "$name" \
-        --nic1 intnet \
-        --intnet1 "$initial_intnet" \
-        --cableconnected1 on \
-        || return 1
+    # NIC1 es conserva en NAT perquè és la via de gestió SSH del laboratori.
+    # La connectivitat entre routers i la sortida a Internet es fan per
+    # les interfícies ether2..etherN.
+    log_info "NIC1 es manté en mode NAT per gestió SSH"
+    return 0
 }
 
 
