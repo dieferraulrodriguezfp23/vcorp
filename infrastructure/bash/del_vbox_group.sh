@@ -1,30 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-# Carregar les funcions d'ajuda i variables de configuració
+# Cargar las funciones de ayuda y las variables de configuración
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Comprovar la disponibilitat de VBoxManage
+# Comprobar la disponibilidad de VBoxManage
 if [ -z "$VBOXMANAGE_BIN" ]; then
-    log_err "VBoxManage no està instal·lat o no es troba al PATH."
+    log_err "VBoxManage no está instalado o no se encuentra en el PATH."
     exit 1
 fi
 
-# Funció per mostrar l'ajuda
+# Función para mostrar la ayuda
 show_help() {
     cat << EOF
-Ús: $0 [OPCIONS] [NOM_DEL_GRUP]
+Uso: $0 [OPCIONES] [NOMBRE_DEL_GRUPO]
 
-Esborra les màquines virtuals d'un grup de VirtualBox i tots els seus subgrups.
+Elimina las máquinas virtuales de un grupo de VirtualBox y de todos sus
+subgrupos.
 
-Opcions:
-  -r, --routers    Esborra el grup de routers (${VM_ROUTERS_GROUP:-no definit})
-  -a, --all        Esborra el grup arrel (${VBOX_ROOT_GROUP:-no definit})
-  -h, --help       Mostra aquest missatge d'ajuda
+Opciones:
+  -r, --routers    Elimina el grupo de routers (${VM_ROUTERS_GROUP:-no definido})
+  -a, --all        Elimina el grupo raíz (${VBOX_ROOT_GROUP:-no definido})
+  -h, --help       Muestra este mensaje de ayuda
 
-Exemples:
-  $0 /VCorp
+Ejemplos:
+  $0 /VirtualCorp
   $0 -r
   $0 --all
 EOF
@@ -32,7 +33,7 @@ EOF
 
 TARGET_GROUP=""
 
-# Processament d'arguments/flags (facilita afegir noves opcions en el futur)
+# Procesamiento de argumentos y opciones
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -r|--routers)
@@ -48,7 +49,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -*)
-            log_err "Opció desconeguda: $1"
+            log_err "Opción desconocida: $1"
             show_help
             exit 1
             ;;
@@ -56,7 +57,7 @@ while [[ $# -gt 0 ]]; do
             if [ -z "$TARGET_GROUP" ]; then
                 TARGET_GROUP="$1"
             else
-                log_err "Error: S'han especificat múltiples grups o paràmetres no vàlids ('$1')."
+                log_err "Error: se han especificado varios grupos o parámetros no válidos ('$1')."
                 exit 1
             fi
             shift
@@ -64,46 +65,46 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validar que s'hagi definit un grup
+# Validar que se haya definido un grupo
 if [ -z "$TARGET_GROUP" ]; then
-    log_err "Error: Cal especificar un grup o utilitzar un flag de selecció (-r, -a)."
+    log_err "Error: hay que especificar un grupo o utilizar una opción de selección (-r, -a)."
     show_help
     exit 1
 fi
 
-# Normalitzar el grup d'entrada (comença per '/' i sense '/' al final)
+# Normalizar el grupo de entrada (empieza por '/' y sin '/' al final)
 TARGET_GROUP="/${TARGET_GROUP#/}"
 TARGET_GROUP="${TARGET_GROUP%/}"
 
-log_info "Cercant màquines virtuals al grup '$TARGET_GROUP' i subgrups..."
+log_info "Buscando máquinas virtuales en el grupo '$TARGET_GROUP' y sus subgrupos..."
 
-# Recórrer totes les MVs pel seu UUID
+# Recorrer todas las máquinas virtuales por su UUID
 VMS=$("$VBOXMANAGE_BIN" list vms | sed -E 's/.*\{([^}]+)\}/\1/')
 
 if [ -z "$VMS" ]; then
-    log_warn "No s'ha trobat cap màquina virtual."
+    log_warn "No se ha encontrado ninguna máquina virtual."
     exit 0
 fi
 
 DELETED_COUNT=0
 
 for UUID in $VMS; do
-    # Extraure informació de la MV
+    # Extraer la información de la máquina virtual
     INFO=$("$VBOXMANAGE_BIN" showvminfo "$UUID" --machinereadable)
     VM_NAME=$(echo "$INFO" | grep '^name=' | cut -d'=' -f2 | tr -d '"')
     GROUPS_LINE=$(echo "$INFO" | grep '^groups=' | cut -d'=' -f2 | tr -d '"')
     VM_STATE=$(echo "$INFO" | grep '^VMState=' | cut -d'=' -f2 | tr -d '"')
 
-    # Una MV pot pertànyer a diversos grups separats per comes
+    # Una máquina virtual puede pertenecer a varios grupos separados por comas
     IFS=',' read -ra VM_GROUPS <<< "$GROUPS_LINE"
     
     MATCH=false
     for g in "${VM_GROUPS[@]}"; do
-        # Normalitzar el path del grup de la MV
+        # Normalizar la ruta del grupo de la máquina virtual
         g="/${g#/}"
         g="${g%/}"
 
-        # Coincidència exacta ($g == /VCorp) O subgrup ($g comença per /VCorp/)
+        # Coincidencia exacta ($g == /VirtualCorp) o subgrupo ($g empieza por /VirtualCorp/)
         if [ "$g" = "$TARGET_GROUP" ] || [[ "$g" == "$TARGET_GROUP/"* ]]; then
             MATCH=true
             break
@@ -111,20 +112,20 @@ for UUID in $VMS; do
     done
 
     if [ "$MATCH" = true ]; then
-        log_info "-> Trobada: '$VM_NAME' ($UUID) a '$GROUPS_LINE'"
+        log_info "-> Encontrada: '$VM_NAME' ($UUID) en '$GROUPS_LINE'"
 
-        # Aturar la MV si està en execució abans d'esborrar
+        # Detener la máquina virtual si está en ejecución antes de eliminarla
         if [ "$VM_STATE" = "running" ] || [ "$VM_STATE" = "paused" ]; then
-            log_info "   Apagant la màquina virtual..."
+            log_info "   Apagando la máquina virtual..."
             "$VBOXMANAGE_BIN" controlvm "$UUID" poweroff 2>/dev/null || true
             sleep 2
         fi
 
-        # Desregistrar i eliminar tots els fitxers del disc
-        log_info "   Eliminant fitxers i unregistering..."
+        # Desregistrar y eliminar todos los ficheros del disco
+        log_info "   Eliminando ficheros y desregistrando la máquina virtual..."
         "$VBOXMANAGE_BIN" unregistervm "$UUID" --delete
         DELETED_COUNT=$((DELETED_COUNT + 1))
     fi
 done
 
-log_info "Completat. S'han eliminat $DELETED_COUNT màquines virtuals."
+log_info "Completado. Se han eliminado $DELETED_COUNT máquinas virtuales."

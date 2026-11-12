@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# Paràmetres globals de configuració
+# Parámetros globales de configuración
 SSH_USER="${SSH_USER:-sysadmin}"
 
-# Carregar funcions i variables entorn
+# Cargar funciones y variables de entorno
 source "$SCRIPT_DIR/common.sh"
 
 # =========================
-# DOWNLOAD CHR
+# DESCARGA DE CHR
 # =========================
 download_vdi() {
     if [[ ! -f "$ROUTEROS_VDI_PATH" ]]; then
@@ -16,7 +16,7 @@ download_vdi() {
         image_dir="$(dirname "$ROUTEROS_VDI_PATH")"
         mkdir -p "$image_dir"
 
-        log_info "Downloading CHR..."
+        log_info "Descargando CHR..."
         zip_file="${image_dir}/chr.zip"
 
         curl -L "$URL" -o "$zip_file"
@@ -25,42 +25,42 @@ download_vdi() {
     fi
 }
 
-# Funció per verificar dependències i fitxers
+# Función para verificar dependencias y ficheros
 check_prerequisites() {
 
     download_vdi
 
     if [[ ! -f "$ROUTEROS_VDI_PATH" ]]; then
-        log_err "No s'ha trobat la imatge disc de base a '$ROUTEROS_VDI_PATH'."
+        log_err "No se ha encontrado la imagen de disco base en '$ROUTEROS_VDI_PATH'."
         exit 1
     fi
 }
 
 
 # =========================================================
-# CREACIÓ DE LA PLANTILLA (TEMPLATE)
+# CREACIÓN DE LA PLANTILLA (TEMPLATE)
 # =========================================================
 create_router_template() {
     local template_name="${VM_NAME:-routeros_template}"
     local router_nics="${ROUTER_NICS:-8}"
 
-    # Validació bàsica
+    # Validación básica
     if ! [[ "$router_nics" =~ ^[1-8]$ ]]; then
-        log_error "ROUTER_NICS ha de ser un valor entre 1 i 8."
+        log_err "ROUTER_NICS debe ser un valor entre 1 y 8."
         return 1
     fi
 
-    # Si la plantilla ja existeix, s'omet la creació
+    # Si la plantilla ya existe, se omite su creación
     if "$VBOXMANAGE_BIN" showvminfo "$template_name" &>/dev/null; then
-        log_info "La plantilla '$template_name' ja existeix. S'omet la seva creació."
+        log_info "La plantilla '$template_name' ya existe. Se omite su creación."
         return 0
     fi
 
     # =========================
-    # CREATE VM
+    # CREAR VM
     # =========================
 
-    log_info "Creating RouterOS template with $router_nics network interfaces"
+    log_info "Creando la plantilla RouterOS con $router_nics interfaces de red"
 
     "$VBOXMANAGE_BIN" createvm --name "$VM_NAME" --register \
         --memory "$ROUTER_MEMORY" \
@@ -74,8 +74,8 @@ create_router_template() {
 
     # NIC2..NICN = Internal Network
     #
-    # No importa en aquesta fase quina xarxa interna utilitzin.
-    # El objetivo es que RouterOS detecti totes les NIC des del
+    # En esta fase no importa qué red interna utilicen.
+    # El objetivo es que RouterOS detecte todas las NIC desde el
     # primer arranque de la plantilla.
     for ((nic=2; nic<=router_nics; nic++)); do
         "$VBOXMANAGE_BIN" modifyvm "$VM_NAME" \
@@ -88,7 +88,7 @@ create_router_template() {
         --natpf1 "ssh,tcp,127.0.0.1,${SSH_PORT},,22"
 
     # =========================
-    # STORAGE
+    # ALMACENAMIENTO
     # =========================
 
     "$VBOXMANAGE_BIN" storagectl "$VM_NAME" \
@@ -112,28 +112,28 @@ create_router_template() {
         --medium "$VM_DIR/$ROUTEROS_VDI_FILENAME"
 
     # =========================
-    # START VM
+    # ARRANCAR VM
     # =========================
 
-    log_info "Starting VM"
+    log_info "Arrancando la VM"
 
     "$VBOXMANAGE_BIN" startvm "$VM_NAME" --type headless
 
     # =========================
-    # WAIT SSH
+    # ESPERAR SSH
     # =========================
 
-    log_info "Cleaning SSH known_hosts entry"
+    log_info "Limpiando la entrada de known_hosts de SSH"
 
     ssh-keygen -R "[127.0.0.1]:$SSH_PORT" 2>/dev/null || true
 
     wait_ssh 127.0.0.1 "$SSH_PORT"
 
     # =========================
-    # PROVISION ROUTEROS
+    # APROVISIONAR ROUTEROS
     # =========================
 
-    log_info "Configuring RouterOS users + SSH"
+    log_info "Configurando los usuarios de RouterOS y SSH"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -141,19 +141,19 @@ create_router_template() {
         -p "$SSH_PORT" \
         admin@127.0.0.1 <<EOF
 
-# enable SSH service
+# habilitar el servicio SSH
 /ip service enable ssh
 
-# create sysadmin user
+# crear el usuario sysadmin
 /user add name=sysadmin group=full password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)" comment="sysadmin user" disabled=no
 
 EOF
 
     # =========================
-    # INSTALL SYSADMIN KEY
+    # INSTALAR LA CLAVE DE SYSADMIN
     # =========================
 
-    log_info "Injecting sysadmin key"
+    log_info "Inyectando la clave de sysadmin"
 
     scp \
         -o StrictHostKeyChecking=no \
@@ -173,10 +173,10 @@ EOF
 EOF
 
     # =========================
-    # SHOW INTERFACES
+    # MOSTRAR INTERFACES
     # =========================
 
-    log_info "Checking RouterOS interfaces before shutdown"
+    log_info "Comprobando las interfaces de RouterOS antes de apagar"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -186,10 +186,10 @@ EOF
         "/interface print detail"
 
     # =========================
-    # SHUTDOWN
+    # APAGADO
     # =========================
 
-    log_info "Shutting down VM"
+    log_info "Apagando la VM"
 
     "$VBOXMANAGE_BIN" controlvm "$VM_NAME" acpipowerbutton || true
     sleep 20
@@ -198,25 +198,25 @@ EOF
     # SNAPSHOT
     # =========================
 
-    log_info "Creant la plantilla RouterOS '$template_name' al grup '$TEMPLATE_GROUP'..."
+    log_info "Creando la plantilla RouterOS '$template_name' en el grupo '$TEMPLATE_GROUP'..."
 
-    log_info "Creant snapshot base a la plantilla per a permetre clons enllaçats..."
+    log_info "Creando el snapshot base de la plantilla para permitir clones enlazados..."
 
     "$VBOXMANAGE_BIN" snapshot "$template_name" take "BaseSnapshot" \
-        --description "Snapshot base per a clons enllaçats"
+        --description "Snapshot base para clones enlazados"
 
-    log_ok "Plantilla '$template_name' creada correctament amb $router_nics interfícies."
+    log_ok "Plantilla '$template_name' creada correctamente con $router_nics interfaces."
 }
 
 # =========================================================
-# VALIDACIONS
+# VALIDACIONES
 # =========================================================
 
 validate_router_nics() {
     local router_nics="$1"
 
     if ! [[ "$router_nics" =~ ^[1-8]$ ]]; then
-        log_error "ROUTER_NICS ha de ser un valor entre 1 i 8."
+        log_err "ROUTER_NICS debe ser un valor entre 1 y 8."
         return 1
     fi
 }
@@ -234,29 +234,29 @@ validate_router_config() {
     local intnets_name="$2"
     local ips_name="$3"
 
-    # Recuperem els arrays mitjançant nameref
+    # Recuperamos los arrays mediante nameref
     local -n ref_intnets="$intnets_name"
     local -n ref_ips="$ips_name"
 
-    # NIC1 queda reservada per a la interfície de management/NAT.
+    # NIC1 queda reservada para la interfaz de management/NAT.
     #
-    # Per tant, com a màxim podem configurar:
+    # Por tanto, como máximo podemos configurar:
     #
     #   ether2 ... etherN
     #
     local max_internal_nics=$((router_nics - 1))
 
     if (( ${#ref_intnets[@]} > max_internal_nics )); then
-        log_error \
-            "S'han especificat ${#ref_intnets[@]} xarxes internes, " \
-            "però només hi ha $max_internal_nics NICs disponibles " \
+        log_err \
+            "Se han especificado ${#ref_intnets[@]} redes internas, " \
+            "pero solo hay $max_internal_nics NICs disponibles " \
             "(NIC2..NIC${router_nics})."
         return 1
     fi
 
     if (( ${#ref_intnets[@]} != ${#ref_ips[@]} )); then
-        log_error \
-            "--intnets i --ips han de tenir el mateix nombre d'elements."
+        log_err \
+            "--intnets y --ips deben tener el mismo número de elementos."
         return 1
     fi
 
@@ -264,7 +264,7 @@ validate_router_config() {
 }
 
 # =========================================================
-# PARSEIG DELS ARGUMENTS
+# ANÁLISIS DE ARGUMENTOS
 # =========================================================
 
 parse_router_args() {
@@ -300,7 +300,7 @@ parse_router_args() {
 
             --gateway)
                 if [[ $# -lt 2 ]]; then
-                    log_error "--gateway requereix un valor."
+                    log_err "--gateway requiere un valor."
                     return 1
                 fi
 
@@ -309,7 +309,7 @@ parse_router_args() {
                 ;;
 
             *)
-                log_error "Opció desconeguda: $1"
+                log_err "Opción desconocida: $1"
                 return 1
                 ;;
         esac
@@ -318,7 +318,7 @@ parse_router_args() {
 
 
 # =========================================================
-# CREACIÓ DE LA VM
+# CREACIÓN DE LA VM
 # =========================================================
 
 create_router_vm() {
@@ -326,7 +326,7 @@ create_router_vm() {
     local router_nics="$2"
     local ssh_port="$3"
 
-    log_info "Creant VM '$name'"
+    log_info "Creando la VM '$name'"
 
     "$VBOXMANAGE_BIN" createvm \
         --name "$name" \
@@ -341,8 +341,8 @@ create_router_vm() {
         "$name" \
         "$router_nics" || return 1
 
-    # NIC1 = NAT temporal per poder fer el bootstrap per SSH
-    log_info "Configurant NAT temporal per SSH: localhost:$ssh_port → RouterOS:22"
+    # NIC1 = NAT temporal para poder hacer el bootstrap por SSH
+    log_info "Configurando NAT temporal para SSH: localhost:$ssh_port → RouterOS:22"
 
     "$VBOXMANAGE_BIN" modifyvm "$name" \
         --natpf1 "ssh,tcp,127.0.0.1,${ssh_port},,22" || return 1
@@ -350,14 +350,14 @@ create_router_vm() {
 
 
 # =========================================================
-# CONFIGURACIÓ DE LES NICs
+# CONFIGURACIÓN DE LAS NICs
 # =========================================================
 
 configure_router_nics() {
     local name="$1"
     local router_nics="$2"
 
-    log_info "Configurant $router_nics interfícies de xarxa"
+    log_info "Configurando $router_nics interfaces de red"
 
     # -----------------------------------------------------
     # NIC1
@@ -365,8 +365,8 @@ configure_router_nics() {
     #
     # NAT temporal.
     #
-    # Aquesta NIC és la que permet fer el bootstrap inicial
-    # de RouterOS abans de connectar-la a la xarxa definitiva.
+    # Esta NIC es la que permite hacer el bootstrap inicial
+    # de RouterOS antes de conectarla a la red definitiva.
     #
     "$VBOXMANAGE_BIN" modifyvm "$name" \
         --nic1 nat \
@@ -377,10 +377,10 @@ configure_router_nics() {
     # NIC2..NICN
     # -----------------------------------------------------
     #
-    # Inicialment les deixem desconnectades.
+    # Inicialmente las dejamos desconectadas.
     #
-    # Posteriorment configure_router_internal_networks()
-    # les connectarà a les xarxes intnet corresponents.
+    # Posteriormente configure_router_internal_networks()
+    # las conectará a las redes intnet correspondientes.
     #
     for ((nic=2; nic<=router_nics; nic++)); do
 
@@ -395,7 +395,7 @@ configure_router_nics() {
 
 
 # =========================================================
-# CONFIGURACIÓ DE LES XARXES INTERNES
+# CONFIGURACIÓN DE LAS REDES INTERNAS
 # =========================================================
 
 configure_router_internal_networks() {
@@ -408,7 +408,7 @@ configure_router_internal_networks() {
 
     for net in "${ref_intnets[@]}"; do
 
-        log_info "NIC${nic_idx} → xarxa interna '$net'"
+        log_info "NIC${nic_idx} → red interna '$net'"
 
         "$VBOXMANAGE_BIN" modifyvm "$name" \
             "--nic${nic_idx}" intnet \
@@ -422,7 +422,7 @@ configure_router_internal_networks() {
 
 
 # =========================================================
-# STORAGE
+# ALMACENAMIENTO
 # =========================================================
 
 attach_router_disk() {
@@ -431,7 +431,7 @@ attach_router_disk() {
     local vm_dir
     local disk_path
 
-    log_info "Configurant storage"
+    log_info "Configurando el almacenamiento"
 
     "$VBOXMANAGE_BIN" storagectl "$name" \
         --name "SATA" \
@@ -446,7 +446,7 @@ attach_router_disk() {
     )"
 
     if [[ -z "$vm_dir" ]]; then
-        log_error "No s'ha pogut determinar el directori de la VM '$name'."
+        log_err "No se ha podido determinar el directorio de la VM '$name'."
         return 1
     fi
 
@@ -454,7 +454,7 @@ attach_router_disk() {
 
     disk_path="$vm_dir/$ROUTEROS_VDI_FILENAME"
 
-    log_info "Clonant VDI RouterOS → $disk_path"
+    log_info "Clonando el VDI de RouterOS → $disk_path"
 
     "$VBOXMANAGE_BIN" clonemedium disk \
         "$ROUTEROS_VDI_PATH" \
@@ -484,25 +484,25 @@ bootstrap_routeros() {
     sysadmin_password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)"
     auditor_password="$(openssl rand -hex 16 2>/dev/null || date +%s%N)"
 
-    log_info "Arrencant '$name' per fer el bootstrap"
+    log_info "Arrancando '$name' para hacer el bootstrap"
 
     "$VBOXMANAGE_BIN" startvm "$name" --type headless || return 1
 
-    log_info "Esperant SSH de RouterOS a 127.0.0.1:$ssh_port"
+    log_info "Esperando SSH de RouterOS en 127.0.0.1:$ssh_port"
 
     ssh-keygen -R "[127.0.0.1]:$ssh_port" 2>/dev/null || true
 
     wait_ssh 127.0.0.1 "$ssh_port" || {
-        log_error "No s'ha pogut establir SSH amb '$name'."
+        log_err "No se ha podido establecer SSH con '$name'."
         return 1
     }
 
 
     # -----------------------------------------------------
-    # Crear usuari sysadmin
+    # Crear el usuario sysadmin
     # -----------------------------------------------------
 
-    log_info "Configurant usuari sysadmin"
+    log_info "Configurando el usuario sysadmin"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -516,16 +516,16 @@ bootstrap_routeros() {
 EOF
 
     if [[ $? -ne 0 ]]; then
-        log_err "No s'ha pogut crear l'usuari sysadmin."
+        log_err "No se ha podido crear el usuario sysadmin."
         return 1
     fi
 
 
     # -----------------------------------------------------
-    # Instal·lar clau pública
+    # Instalar la clave pública
     # -----------------------------------------------------
 
-    log_info "Injectant clau SSH de sysadmin"
+    log_info "Inyectando la clave SSH de sysadmin"
 
     scp \
         -o StrictHostKeyChecking=no \
@@ -547,16 +547,16 @@ EOF
 EOF
 
     if [[ $? -ne 0 ]]; then
-        log_err "No s'ha pogut instal·lar la clau SSH."
+        log_err "No se ha podido instalar la clave SSH."
         return 1
     fi
 
 
     # -----------------------------------------------------
-    # Instal·lar clau pública de l'auditor
+    # Instalar la clave pública del auditor
     # -----------------------------------------------------
 
-    log_info "Injectant clau SSH de l'auditor"
+    log_info "Inyectando la clave SSH del auditor"
 
     scp \
         -o StrictHostKeyChecking=no \
@@ -579,16 +579,16 @@ EOF
 EOF
 
     if [[ $? -ne 0 ]]; then
-        log_err "No s'ha pogut instal·lar la clau SSH de l'auditor."
+        log_err "No se ha podido instalar la clave SSH del auditor."
         return 1
     fi
 
 
     # -----------------------------------------------------
-    # Validar accés per clau i desactivar contrasenyes
+    # Validar el acceso por clave y desactivar las contraseñas
     # -----------------------------------------------------
 
-    log_info "Comprovant accés amb clau de sysadmin"
+    log_info "Comprobando el acceso con clave de sysadmin"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -597,11 +597,11 @@ EOF
         -p "$ssh_port" \
         "$SSH_USER@127.0.0.1" \
         "/system identity print" >/dev/null || {
-            log_err "No s'ha pogut validar l'accés amb clau de sysadmin."
+            log_err "No se ha podido validar el acceso con clave de sysadmin."
             return 1
         }
 
-    log_info "Desactivant autenticació per contrasenya"
+    log_info "Desactivando la autenticación por contraseña"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -612,12 +612,12 @@ EOF
         "/ip ssh set password-authentication=no" \
         || return 1
 
-    log_ok "Bootstrap de '$name' completat"
+    log_ok "Bootstrap de '$name' completado"
 }
 
 
 # =========================================================
-# GENERACIÓ DE CONFIGURACIÓ ROUTEROS
+# GENERACIÓN DE LA CONFIGURACIÓN DE ROUTEROS
 # =========================================================
 
 generate_router_config() {
@@ -629,11 +629,11 @@ generate_router_config() {
 
     local -n ref_ips="$ips_name"
 
-    # Comencem amb un fitxer buit
+    # Empezamos con un fichero vacío
     : > "$rsc_file"
 
     # -----------------------------------------------------
-    # Adreces IP
+    # Direcciones IP
     # -----------------------------------------------------
 
     local idx
@@ -650,7 +650,7 @@ EOF
     done
 
     # -----------------------------------------------------
-    # Default gateway
+    # Puerta de enlace por defecto
     # -----------------------------------------------------
 
     if [[ -n "$gateway" ]]; then
@@ -663,7 +663,7 @@ EOF
     fi
 
     # -----------------------------------------------------
-    # RIP & hostname
+    # RIP y nombre de host
     # -----------------------------------------------------
 
     cat >> "$rsc_file" <<EOF
@@ -690,7 +690,7 @@ EOF
 }
 
 # =========================================================
-# APLICACIÓ DE LA CONFIGURACIÓ ROUTEROS
+# APLICACIÓN DE LA CONFIGURACIÓN DE ROUTEROS
 # =========================================================
 
 apply_router_config() {
@@ -702,7 +702,7 @@ apply_router_config() {
 
     local rsc_file="/tmp/${name}_config.rsc"
 
-    log_info "Generant configuració RouterOS $name"
+    log_info "Generando la configuración de RouterOS $name"
 
     generate_router_config \
         "$rsc_file" \
@@ -714,10 +714,10 @@ apply_router_config() {
 
 
     # -----------------------------------------------------
-    # Pujar configuració
+    # Subir la configuración
     # -----------------------------------------------------
 
-    log_info "Pujant configuració RSC a '$name'"
+    log_info "Subiendo la configuración RSC a '$name'"
 
     scp \
         -o StrictHostKeyChecking=no \
@@ -733,10 +733,10 @@ apply_router_config() {
 
 
     # -----------------------------------------------------
-    # Importar configuració
+    # Importar la configuración
     # -----------------------------------------------------
 
-    log_info "Aplicant configuració RSC"
+    log_info "Aplicando la configuración RSC"
 
     ssh \
         -o StrictHostKeyChecking=no \
@@ -753,12 +753,12 @@ apply_router_config() {
 
     rm -f "$rsc_file"
 
-    log_ok "Configuració RouterOS aplicada"
+    log_ok "Configuración de RouterOS aplicada"
 }
 
 
 # =========================================================
-# CONFIGURACIÓ FINAL DE LA NIC1
+# CONFIGURACIÓN FINAL DE LA NIC1
 # =========================================================
 
 configure_final_network() {
@@ -766,16 +766,27 @@ configure_final_network() {
     local nat="$2"
     local intnets_name="$3"
 
-    # NIC1 es conserva en NAT perquè és la via de gestió SSH del laboratori.
-    # La connectivitat entre routers i la sortida a Internet es fan per
-    # les interfícies ether2..etherN.
-    log_info "NIC1 es manté en mode NAT per gestió SSH"
-    return 0
+    # Solo router0 puede conservar una interfaz NAT. Los demás routers
+    # dejan NIC1 en una red interna no utilizada y desconectada.
+    if [[ "$nat" == true ]]; then
+        log_info "NIC1 se mantiene en modo NAT en '$name'"
+        return 0
+    fi
+
+    log_info "NIC1 de '$name' sin NAT (red interna de gestión desconectada)"
+
+    "$VBOXMANAGE_BIN" modifyvm "$name" \
+        --nic1 intnet \
+        --intnet1 "unused" \
+        --cableconnected1 off \
+        || return 1
+
+    "$VBOXMANAGE_BIN" modifyvm "$name" --natpf1 delete "ssh" 2>/dev/null || true
 }
 
 
 # =========================================================
-# CREACIÓ D'UN ROUTER CONCRET
+# CREACIÓN DE UN ROUTER CONCRETO
 # =========================================================
 
 create_router() {
@@ -786,7 +797,7 @@ create_router() {
     local ssh_port="$2"
 
     if [[ -z "$name" || -z "$ssh_port" ]]; then
-        log_error "Ús: create_router <name> <ssh_port> [opcions]"
+        log_err "Uso: create_router <name> <ssh_port> [opciones]"
         return 1
     fi
 
@@ -794,14 +805,14 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # VALIDACIONS
+    # VALIDACIONES
     # -----------------------------------------------------
 
     validate_router_nics "$router_nics" || return 1
 
 
     # -----------------------------------------------------
-    # PARÀMETRES DE CONFIGURACIÓ
+    # PARÁMETROS DE CONFIGURACIÓN
     # -----------------------------------------------------
 
     local intnets=()
@@ -826,25 +837,25 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # COMPROVAR SI JA EXISTEIX
+    # COMPROBAR SI YA EXISTE
     # -----------------------------------------------------
 
     if router_exists "$name"; then
 
         log_warn \
-            "El router '$name' ja existeix. " \
-            "S'omet el desplegament."
+            "El router '$name' ya existe. " \
+            "Se omite el despliegue."
 
         return 0
     fi
 
 
     # -----------------------------------------------------
-    # INFORMACIÓ
+    # INFORMACIÓN
     # -----------------------------------------------------
 
     log_info "=========================================="
-    log_info "Desplegant router: $name"
+    log_info "Desplegando el router: $name"
     log_info "=========================================="
 
 
@@ -860,7 +871,7 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # 2. CONFIGURAR STORAGE
+    # 2. CONFIGURAR EL ALMACENAMIENTO
     # -----------------------------------------------------
 
     attach_router_disk \
@@ -869,7 +880,7 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # 3. CONFIGURAR XARXES INTERNES
+    # 3. CONFIGURAR LAS REDES INTERNAS
     # -----------------------------------------------------
 
     configure_router_internal_networks \
@@ -889,7 +900,7 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # 5. CONFIGURACIÓ ROUTEROS
+    # 5. CONFIGURACIÓN DE ROUTEROS
     # -----------------------------------------------------
 
     apply_router_config \
@@ -902,21 +913,21 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # 6. APAGAR ROUTER
+    # 6. APAGAR EL ROUTER
     # -----------------------------------------------------
 
-    log_info "Apagant '$name'"
+    log_info "Apagando '$name'"
 
     "$VBOXMANAGE_BIN" controlvm "$name" acpipowerbutton || {
-        log_warn "No s'ha pogut enviar ACPI shutdown a '$name'."
+        log_warn "No se ha podido enviar el apagado ACPI a '$name'."
     }
 
 
     # -----------------------------------------------------
-    # 7. ESPERAR APAGADA
+    # 7. ESPERAR A QUE SE APAGUE
     # -----------------------------------------------------
 
-    log_info "Esperant que '$name' s'apagui..."
+    log_info "Esperando a que '$name' se apague..."
 
     while true; do
 
@@ -937,7 +948,7 @@ create_router() {
 
 
     # -----------------------------------------------------
-    # 8. CONFIGURACIÓ FINAL DE NIC1
+    # 8. CONFIGURACIÓN FINAL DE NIC1
     # -----------------------------------------------------
 
     configure_final_network \
@@ -948,6 +959,6 @@ create_router() {
 
 
     log_ok \
-        "Router '$name' creat i configurat correctament."
+        "Router '$name' creado y configurado correctamente."
 }
 

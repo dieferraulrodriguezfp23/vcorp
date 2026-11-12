@@ -1,94 +1,125 @@
-# Project components
+# Componentes del proyecto
 
-This page describes the repository's current folders and the files used by the
-active router deployment workflow. The lab uses MikroTik RouterOS CHR virtual
-machines in VirtualBox.
+Este documento explica qué hay en cada carpeta y para qué sirve cada fichero importante. El laboratorio usa máquinas de VirtualBox: routers MikroTik RouterOS CHR, templates Debian y, más adelante, el equipamiento de la delegación.
 
-## Folder structure
+## Carpetas
 
 ```text
 .
 ├── artifacts/
-│   └── images/
-│       └── chr/
+│   ├── images/
+│   │   ├── chr/
+│   │   ├── debian/
+│   │   └── proxmox/
+│   ├── preseed/
+│   ├── secrets/
+│   └── tools/
 ├── automation/
 │   ├── ansible/
 │   └── scripts/
 │       └── bootstrap/
 ├── configs/
+│   ├── preseed/
 │   └── ssh/
 ├── docs/
 └── infrastructure/
     ├── bash/
+    │   └── templates/
     └── terraform/
 ```
 
-| Folder | Purpose |
+| Carpeta | Para qué sirve |
 | --- | --- |
-| `artifacts/images/chr/` | Holds the downloaded RouterOS CHR disk image and other local generated image files. Generated files are ignored by Git; `.gitkeep` preserves the directory when outputs are absent. |
-| `automation/ansible/` | Reserved for Ansible automation. It currently contains only `.gitkeep`, with no playbooks or inventory files. |
-| `automation/scripts/bootstrap/` | Bootstrap scripts for initial configuration of the virtual environment (before Ansible can be applied). |
-| `configs/ssh/` | Public SSH keys used by the bootstrap scripts and router accounts. Private keys are stored locally, usually in `~/.ssh`. |
-| `docs/` | Project documentation: assignment statement, component reference, and the delegation 22 deployment report. |
-| `infrastructure/bash/` | Bash scripts that create VirtualBox routers, connect their network interfaces, and bootstrap RouterOS. |
-| `infrastructure/terraform/` | Reserved for Terraform configuration. It currently contains only `.gitkeep`, with no Terraform configuration files. |
+| `artifacts/images/chr/` | Guarda la imagen de RouterOS CHR y otros ficheros generados. Git no los versiona; `.gitkeep` mantiene la carpeta. |
+| `artifacts/images/debian/` | Guarda la ISO de Debian y los ficheros que se crean al hacer los templates. |
+| `artifacts/images/proxmox/` | Guarda la ISO de Proxmox VE y la ISO preparada para instalar sin asistente. |
+| `artifacts/preseed/` | Scripts de postinstalación generados a partir de `configs/preseed/`. |
+| `artifacts/secrets/` | Contraseñas aleatorias de los templates. Git no las versiona. |
+| `artifacts/tools/` | Herramientas locales para preparar Proxmox cuando no están en el sistema. |
+| `automation/ansible/` | Reservado para Ansible. Ahora solo tiene `.gitkeep`. |
+| `automation/scripts/bootstrap/` | Scripts de arranque anteriores a Ansible. |
+| `configs/preseed/` | Preseeds de Debian Server y Desktop y plantilla de postinstalación. |
+| `configs/ssh/` | Claves públicas que usan los scripts y las cuentas de los equipos. Las privadas están en `~/.ssh`. |
+| `docs/` | Documentación: enunciado, componentes y despliegue. |
+| `infrastructure/bash/` | Scripts que crean las máquinas, conectan las redes y configuran RouterOS y los templates. |
+| `infrastructure/bash/templates/` | Scripts para crear y preparar los templates Debian. |
+| `infrastructure/terraform/` | Reservado para Terraform. Ahora solo tiene `.gitkeep`. |
 
-## Main files
+## Ficheros principales
 
-### Repository root
+### Raíz del repositorio
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `Makefile` | Provides the help, router deployment, deletion, reset, and SSH-key targets used by the setup workflow. It loads local settings from `.env`. |
-| `.env.example` | Example Make configuration for project paths, SSH key locations, RouterOS image settings, and VirtualBox groups. Copy it to `.env` and adjust it for the local machine. |
-| `.gitignore` | Excludes local settings, private credentials, generated images, VirtualBox data, and temporary files from Git. |
-| `readme.md` | Project overview, prerequisites, setup steps, and a basic router connectivity check. |
+| `Makefile` | Tiene los targets de ayuda, despliegue, borrado, claves SSH y templates. Carga la configuración de `.env`. |
+| `.env.example` | Ejemplo de configuración: rutas, claves, versiones de imágenes, grupos de VirtualBox y parámetros de los templates. Se copia a `.env`. |
+| `.gitignore` | Evita subir configuración local, claves privadas, imágenes, datos de VirtualBox, backups y temporales. |
+| `readme.md` | Presentación, estado, requisitos, puesta en marcha y pruebas básicas. |
 
 ### `automation/scripts/bootstrap/`
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `create_ssh_keys.sh` | Generates the `vcorp_sysadmin` and MikroTik-compatible `vcorp_mikrotik` SSH key pairs. Private keys stay in the local SSH directory; public keys are copied to `configs/ssh/`. The professor's `vcorp_auditor.pub` key is not regenerated. |
-| `create_mikrotik_box.sh` | Legacy template-packaging helper. It downloads a CHR image if needed, configures a temporary RouterOS VM, and packages it. The active router deployment workflow does not use this helper. |
+| `create_ssh_keys.sh` | Crea `vcorp_sysadmin` y `vcorp_mikrotik`. Las privadas se quedan en `~/.ssh` y las públicas se copian a `configs/ssh/`. La clave del profesor no se regenera. |
+| `create_mikrotik_box.sh` | Utilidad antigua para empaquetar RouterOS como caja de Vagrant. El despliegue actual no la usa. |
 
-### `automation/ansible/` and `infrastructure/terraform/`
+### `automation/ansible/` e `infrastructure/terraform/`
 
-Each directory currently contains only a `.gitkeep` placeholder. No Ansible playbooks or Terraform configuration files are present yet.
+Solo tienen un `.gitkeep`. Todavía no hay playbooks de Ansible ni configuración de Terraform.
+
+### `configs/preseed/`
+
+| Fichero | Para qué sirve |
+| --- | --- |
+| `debian-server-preseed.cfg` | Respuestas del instalador para Debian Server. Instala lo mínimo y SSH. |
+| `debian-desktop-preseed.cfg` | Respuestas del instalador para Debian Desktop. Instala LXQt, LightDM y Falkon. |
+| `debian-postinstall.sh.tmpl` | Plantilla de postinstalación basada en la de VirtualBox. Añade las claves SSH, la seguridad de SSH y el target por defecto. |
 
 ### `configs/ssh/`
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `vcorp_auditor.pub` | Public key for the auditor account. |
-| `vcorp_mikrotik.pub` | Public key using the MikroTik-compatible key format. |
-| `vcorp_sysadmin.pub` | Public key for the sysadmin account and router bootstrap. |
+| `vcorp-auditor.pub` | Clave pública del profesor con el nombre del enunciado. |
+| `vcorp_auditor.pub` | La misma clave, con el nombre que ya tenía el repositorio. |
+| `vcorp_mikrotik.pub` | Clave pública compatible con RouterOS. |
+| `vcorp_sysadmin.pub` | Clave pública de `sysadmin` y del bootstrap de los routers. |
 
 ### `infrastructure/bash/`
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `common.sh` | Sets shared VirtualBox, RouterOS, path, and key settings; defines logging helpers and an SSH availability check. |
-| `router_base.sh` | Provides functions to download the CHR image, create and configure router VMs and network interfaces, bootstrap RouterOS over SSH, install the student and auditor SSH keys, and apply router configuration. |
-| `deploy_routers.sh` | Defines the four lab routers (`router0` through `router3`) for delegation 22 (`10.22.0.0/16`), their internal networks, IP addresses, gateways, and NAT settings, then creates them. |
-| `del_vbox_group.sh` | Deletes VirtualBox VMs in a selected group and its subgroups. It supports selecting the router group or the root group. |
+| `common.sh` | Configuración común de VirtualBox, RouterOS, rutas y claves; funciones de log y de espera de SSH. |
+| `router_base.sh` | Descarga CHR, crea las VMs y sus redes, hace el bootstrap por SSH, instala las claves y aplica la configuración. |
+| `deploy_routers.sh` | Define los cuatro routers de la delegación 22 con sus redes, direcciones, puertas de enlace y NAT. |
+| `equipment_common.sh` | Funciones para descargar y verificar imágenes, comprobar VMs, esperar el apagado y probar SSH con clave. |
+| `del_vbox_group.sh` | Borra las VMs de un grupo de VirtualBox y de sus subgrupos. Puede borrar routers o todo el grupo raíz. |
+
+### `infrastructure/bash/templates/`
+
+| Fichero | Para qué sirve |
+| --- | --- |
+| `template_base.sh` | Crea los templates Debian: descarga y verifica la ISO, crea la VM, instala sin asistente, comprueba, apaga, cambia la red y crea el snapshot `base`. |
+| `create_templates.sh` | Punto de entrada de `make create_templates`. Permite crear el de servidor, el de escritorio o los dos. |
 
 ### `docs/`
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `components.md` | Describes the repository structure and the purpose of its main files. |
-| `deployment.md` | Describes the delegation 22 deployment, design decisions, validation results, and incidents. |
-| `statement.html` | Contains the assignment scenario, requirements, and project details. |
+| `components.md` | Este documento: estructura y finalidad de los ficheros. |
+| `deployment.md` | Despliegue de la delegación 22, decisiones, pruebas y problemas. |
+| `statement.html` | Enunciado original del proyecto. |
 
 ### `artifacts/images/chr/`
 
-| File | Functionality |
+| Fichero | Para qué sirve |
 | --- | --- |
-| `.gitkeep` | Keeps the output directory in Git when it has no generated images. Downloaded disk images and other generated files are local outputs and are not committed. |
+| `.gitkeep` | Mantiene la carpeta en Git cuando no hay imágenes. Las imágenes y los discos no se versionan. |
 
-## Typical workflow
+## Flujo de trabajo
 
-1. Copy `.env.example` to `.env` and customize local paths if needed.
-2. Run `make ssh-keys` to create the SSH key pairs.
-3. Run `make deploy-routers` to download the CHR image when needed and create the lab routers.
-4. Use `make delete-routers` or `make reset-routers` to remove or recreate the router group.
+1. Copia `.env.example` a `.env` y cambia las rutas si hace falta.
+2. Ejecuta `make ssh-keys` para crear las claves.
+3. Ejecuta `make deploy-routers` para descargar CHR y crear los routers.
+4. Ejecuta `make create_templates` para crear los templates Debian.
+5. Usa `make delete-routers` o `make reset-routers` para borrar o rehacer los routers.
+6. Completa `make deploy_equipment` para crear los clones del equipamiento.

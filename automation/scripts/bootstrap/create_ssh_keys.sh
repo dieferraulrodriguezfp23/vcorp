@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ###############################################################################
-# Configuració
+# Configuración
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,35 +15,35 @@ PRIVATE_KEY_DIR="${SSH_PRIVATE_KEY_DIR:-${HOME}/.ssh}"
 FORCE=false
 
 ###############################################################################
-# Funcions
+# Funciones
 ###############################################################################
 
 usage() {
     cat <<EOF
-VirtualCorp SSH Key Generator
+Generador de claves SSH de VirtualCorp
 
-Genera les claus SSH del laboratori VirtualCorp:
+Genera las claves SSH del laboratorio VirtualCorp:
   - vcorp_sysadmin
   - vcorp_mikrotik
 
-La clau vcorp_auditor.pub és la del professor i no es regenera.
+La clave vcorp_auditor.pub es la del profesor y no se regenera.
 
-Opcions:
-  -f    Força regeneració (esborra claus existents)
-  -h    Mostra ajuda
+Opciones:
+  -f    Fuerza la regeneración (borra las claves existentes)
+  -h    Muestra la ayuda
 
-Exemples:
+Ejemplos:
   $(basename "$0")
   $(basename "$0") -f
 EOF
 }
 
-# Colors ANSI
+# Colores ANSI
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Sin color
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $*"
@@ -62,29 +62,29 @@ log_err() {
 }
 
 ###############################################################################
-# SEGURETAT: evitar secrets al repositori
+# SEGURIDAD: evitar secretos en el repositorio
 ###############################################################################
 
 check_repo_for_private_keys() {
-    log_info "Comprovant que no hi ha claus privades al repositori..."
+    log_info "Comprobando que no hay claves privadas en el repositorio..."
 
     local found
     found=$(find "${PROJECT_ROOT}" -type f \( -name "*.key" -o -name "id_*" -o -name "*.pem" \) 2>/dev/null || true)
 
     if [[ -n "${found}" ]]; then
         echo
-        log_err "S'han detectat possibles claus privades dins del repositori!"
+        log_err "¡Se han detectado posibles claves privadas dentro del repositorio!"
         echo "${found}"
         echo
-        log_err "Refusa continuar per seguretat."
+        log_err "Se rechaza continuar por seguridad."
         exit 1
     fi
 
-    log_ok "No s'han detectat secrets al repositori."
+    log_ok "No se han detectado secretos en el repositorio."
 }
 
 ###############################################################################
-# Generació de claus
+# Generación de claves
 ###############################################################################
 
 generate_key() {
@@ -95,11 +95,11 @@ generate_key() {
 
     if [[ -f "${private_key}" || -f "${private_key}.pub" ]]; then
         if [[ "${FORCE}" != "true" ]]; then
-            log_warn "La clau '${key_name}' ja existeix. S'omet (usa -f per regenerar)."
+            log_warn "La clave '${key_name}' ya existe. Se omite (usa -f para regenerar)."
             return
         fi
 
-        log_warn "Regenerant '${key_name}' (FORÇAT)"
+        log_warn "Regenerando '${key_name}' (FORZADO)"
 
         rm -f \
             "${private_key}" \
@@ -107,7 +107,7 @@ generate_key() {
             "${public_key_repo}"
     fi
 
-    log_info "Generant clau '${key_name}'..."
+    log_info "Generando la clave '${key_name}'..."
 
     ssh-keygen \
         -q \
@@ -123,12 +123,12 @@ generate_key() {
     chmod 644 "${private_key}.pub"
     chmod 644 "${public_key_repo}"
 
-    log_ok "Clau '${key_name}' creada"
+    log_ok "Clave '${key_name}' creada"
 }
 
 generate_mikrotik_key() {
-    # Mikrotik is not compatible with modern ssh keys $ algorithms
-    # Generate a ssh pair key specific to Mikrotik
+    # MikroTik no es compatible con los algoritmos de las claves SSH modernas.
+    # Se genera un par de claves específico en formato RSA/PEM para MikroTik.
     local key_name=vcorp_mikrotik
 
     local private_key="${PRIVATE_KEY_DIR}/${key_name}"
@@ -136,11 +136,11 @@ generate_mikrotik_key() {
 
     if [[ -f "${private_key}" || -f "${private_key}.pub" ]]; then
         if [[ "${FORCE}" != "true" ]]; then
-            log_warn "La clau '${key_name}' ja existeix. S'omet (usa -f per regenerar)."
+            log_warn "La clave '${key_name}' ya existe. Se omite (usa -f para regenerar)."
             return
         fi
 
-        log_warn "Regenerant '${key_name}' (FORÇAT)"
+        log_warn "Regenerando '${key_name}' (FORZADO)"
 
         rm -f \
             "${private_key}" \
@@ -148,7 +148,7 @@ generate_mikrotik_key() {
             "${public_key_repo}"
     fi
 
-    log_info "Generant clau '${key_name}'..."
+    log_info "Generando la clave '${key_name}'..."
 
     ssh-keygen \
         -q \
@@ -165,7 +165,7 @@ generate_mikrotik_key() {
     chmod 644 "${private_key}.pub"
     chmod 644 "${public_key_repo}"
 
-    log_ok "Clau '${key_name}' creada"
+    log_ok "Clave '${key_name}' creada"
 }
 
 
@@ -184,7 +184,7 @@ while getopts ":fh" opt; do
             exit 0
             ;;
         \?)
-            log_err "Opció invàlida: -${OPTARG}"
+            log_err "Opción inválida: -${OPTARG}"
             usage
             exit 1
             ;;
@@ -192,11 +192,11 @@ while getopts ":fh" opt; do
 done
 
 ###############################################################################
-# Execució
+# Ejecución
 ###############################################################################
 
 if ! command -v ssh-keygen >/dev/null 2>&1; then
-    log_err "ssh-keygen no està instal·lat"
+    log_err "ssh-keygen no está instalado"
     exit 1
 fi
 
@@ -205,36 +205,36 @@ mkdir -p "${PUBLIC_KEY_DIR}"
 
 check_repo_for_private_keys
 
-# vcorp_auditor.pub is the professor's public key: never regenerate or
-# overwrite it from this script.
+# vcorp_auditor.pub es la clave pública del profesor: nunca se regenera ni se
+# sobrescribe desde este script.
 #generate_key "vcorp_auditor"
 generate_key "vcorp_sysadmin"
 generate_mikrotik_key
 
 ###############################################################################
-# Resum final
+# Resumen final
 ###############################################################################
 
 cat <<EOF
 
 ==================================================
-VirtualCorp SSH Keys generades correctament
+Claves SSH de VirtualCorp generadas correctamente
 ==================================================
 
-Privades (LOCAL):
+Privadas (LOCAL):
   ${PRIVATE_KEY_DIR}/vcorp_sysadmin
   ${PRIVATE_KEY_DIR}/vcorp_mikrotik
 
-Públiques (REPO):
+Públicas (REPO):
   ${PUBLIC_KEY_DIR}/vcorp_sysadmin.pub
   ${PUBLIC_KEY_DIR}/vcorp_mikrotik.pub
-  ${PUBLIC_KEY_DIR}/vcorp_auditor.pub  (clau del professor, no generada)
+  ${PUBLIC_KEY_DIR}/vcorp_auditor.pub  (clave del profesor, no generada)
 
-Regles del laboratori:
-  - NO pujar mai claus privades a GitHub
-  - vcorp_sysadmin → administració + Ansible
-  - vcorp_mikrotik → alternativa RSA compatible amb RouterOS
-  - vcorp_auditor → accés professor / auditoria
+Reglas del laboratorio:
+  - No subir nunca claves privadas a GitHub
+  - vcorp_sysadmin → administración + Ansible
+  - vcorp_mikrotik → alternativa RSA compatible con RouterOS
+  - vcorp_auditor → acceso profesor / auditoría
 
 ==================================================
 EOF

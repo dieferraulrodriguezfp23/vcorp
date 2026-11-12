@@ -1,10 +1,10 @@
 
 # ============================================================
-# VirtualCorp - Bash, Ansible, Terraform i VirtualBox
+# VirtualCorp - Bash, Ansible, Terraform y VirtualBox
 # ============================================================
 
 # ------------------------------------------------------------
-# Sistema operatiu i editors
+# Sistema operativo y editores
 # ------------------------------------------------------------
 
 *~
@@ -26,7 +26,7 @@ Thumbs.db
 .idea/
 
 # ------------------------------------------------------------
-# Bash: temporals, depuració i sortides
+# Bash: temporales, depuración y salidas
 # ------------------------------------------------------------
 
 *.log
@@ -37,12 +37,12 @@ Thumbs.db
 core
 core.*
 
-# Fitxers temporals creats per scripts
+# Ficheros temporales creados por scripts
 /tmp/
 /temp/
 /.cache/
 
-# Resultats generats (adapta els noms a l'estructura real)
+# Resultados generados (adapta los nombres a la estructura real)
 logs/
 reports/
 output/
@@ -52,26 +52,26 @@ output/
 # Ansible
 # ------------------------------------------------------------
 
-# Fitxers de sortida i temporals
+# Ficheros de salida y temporales
 *.retry
 .retry/
 ansible.log
 
-# Inventaris locals generats
+# Inventarios locales generados
 inventory/local
 inventory/local.*
 inventory/generated/
 inventories/local/
 inventories/generated/
 
-# Variables locals i secrets
+# Variables locales y secretos
 vault-password-file
 .vault-password
 .vault_pass
 group_vars/*/vault.yml
 host_vars/*/vault.yml
 
-# Credencials SSH
+# Credenciales SSH
 *.pem
 *.key
 id_rsa
@@ -83,50 +83,50 @@ known_hosts
 # Terraform
 # ------------------------------------------------------------
 
-# Directoris de treball
+# Directorios de trabajo
 **/.terraform/*
 .terraform/
 
-# Fitxers d'estat
+# Ficheros de estado
 *.tfstate
 *.tfstate.*
 terraform.tfstate
 terraform.tfstate.*
 
-# Còpies de seguretat de l'estat
+# Copias de seguridad del estado
 *.backup
 *.tfstate.backup
 
-# Fitxers de variables locals
+# Ficheros de variables locales
 *.tfvars
 *.tfvars.json
 *.auto.tfvars
 *.auto.tfvars.json
 
-# Excepció: plantilles d'exemple sense secrets
+# Excepción: plantillas de ejemplo sin secretos
 !*.example.tfvars
 !*.example.tfvars.json
 
-# Fitxers de configuració local
+# Ficheros de configuración local
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Plans i sortides de Terraform
+# Planes y salidas de Terraform
 *.tfplan
 tfplan
 crash.log
 crash.*.log
 
-# Lock file: NO ignorar .terraform.lock.hcl
-# Cal versionar-lo per fixar les versions dels providers.
+# Fichero de bloqueo: NO ignorar .terraform.lock.hcl
+# Hay que versionarlo para fijar las versiones de los proveedores.
 
 # ------------------------------------------------------------
 # VirtualBox
 # ------------------------------------------------------------
 
-# Màquines virtuals i discos
+# Máquinas virtuales y discos
 *.vdi
 *.vmdk
 *.vhd
@@ -138,23 +138,23 @@ crash.*.log
 *.qcow2
 *.img
 
-# Instantànies, estat desat i memòria
+# Instantáneas, estado guardado y memoria
 *.sav
 *.vbox-tmp
 Snapshots/
 
-# Fitxers de bloqueig
+# Ficheros de bloqueo
 *.lck
 *.lock
 
-# Configuracions locals de VirtualBox
+# Configuraciones locales de VirtualBox
 VirtualBox.xml
 VBoxSVC.log
 VBox.log
 VBox.log.*
 
 # ------------------------------------------------------------
-# Imatges, ISOs i artefactes generats
+# Imágenes, ISOs y artefactos generados
 # ------------------------------------------------------------
 
 *.iso
@@ -174,7 +174,7 @@ artifacts/**/*
 !artifacts/**/.gitkeep
 
 # ------------------------------------------------------------
-# Secrets i credencials
+# Secretos y credenciales
 # ------------------------------------------------------------
 
 .env
@@ -189,15 +189,24 @@ credentials.json
 credentials.yml
 credentials.yaml
 
-# Claus i certificats privats
+# Claves y certificados privados
 *.p12
 *.pfx
 *.crt
 *.cer
 *.pubkey
 
+# Copias de seguridad y material sensible del laboratorio
+/SSH-keys/
+/VirtualBox-VMs/
+/*.tar
+/*.tar.gz
+/*.tar.zst
+/*.zip
+*.zst
+
 # ------------------------------------------------------------
-# Dades locals de desenvolupament i proves
+# Datos locales de desarrollo y pruebas
 # ------------------------------------------------------------
 
 .local/

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================
-# CONFIG
+# CONFIGURACIÓN
 # =========================
 
 ROUTEROS_VERSION="${ROUTEROS_VERSION:-7.21.4}"
@@ -26,12 +26,12 @@ AUDIT_PUB_KEY_FILE="${SSH_PUBLIC_KEY_DIR}/vcorp_auditor.pub"
 SYSADMIN_PUB_KEY_FILE="${SSH_PUBLIC_KEY_DIR}/vcorp_sysadmin.pub"
 VBOXMANAGE_BIN="${VBOXMANAGE_BIN:-$(command -v VBoxManage 2>/dev/null || command -v vboxmanage 2>/dev/null || true)}"
 
-# Colors ANSI
+# Colores ANSI
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Sin color
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $*"
@@ -50,21 +50,21 @@ log_err() {
 }
 
 # =========================
-# DEPENDENCIES
+# DEPENDENCIAS
 # =========================
 
-command -v vagrant >/dev/null 2>&1 || { log_err "Vagrant missing"; exit 1; }
-[[ -n "$VBOXMANAGE_BIN" ]] || { log_err "VirtualBox missing"; exit 1; }
+command -v vagrant >/dev/null 2>&1 || { log_err "Falta Vagrant"; exit 1; }
+[[ -n "$VBOXMANAGE_BIN" ]] || { log_err "Falta VirtualBox"; exit 1; }
 
 # =========================
-# HELP
+# AYUDA
 # =========================
 
 usage() {
 cat <<EOF
-Usage: $0 [-f]
+Uso: $0 [-f]
 
--f Force rebuild
+-f Fuerza la reconstrucción
 EOF
 }
 
@@ -78,55 +78,55 @@ while getopts "fh" opt; do
 done
 
 # =========================
-# CLEANUP
+# LIMPIEZA
 # =========================
 
 if [[ "$FORCE" == true ]]; then
-  log_info "Force cleanup"
+  log_info "Limpieza forzada"
 
-  # 1. Apagar VM si està running
+  # 1. Apagar la VM si está en ejecución
   if VBoxManage list runningvms | grep -q "$VM_NAME"; then
-    log_info "VM is running -> powering off"
+    log_info "La VM está en ejecución -> apagando"
     VBoxManage controlvm "$VM_NAME" poweroff || true
     sleep 3
   fi
 
-  # 2. Intent normal shutdown (si existeix però no està running)
+  # 2. Intentar apagado normal (si existe pero no está en ejecución)
   VBoxManage controlvm "$VM_NAME" acpipowerbutton 2>/dev/null || true
   sleep 5
 
-  # 3. Forçar estat inconsistent
+  # 3. Forzar estado inconsistente
   VBoxManage unregistervm "$VM_NAME" --delete 2>/dev/null || true
 
-  # 4. Si queda carpeta residual (IMPORTANT)
+  # 4. Si queda una carpeta residual (IMPORTANTE)
   rm -rf "$HOME/VirtualBox VMs/$VM_NAME" || true
 
-  # 5. Box cleanup
+  # 5. Limpieza del box
   vagrant box remove "$BOX_NAME" --force 2>/dev/null || true
 
-  # 6. Fitxer box local
+  # 6. Fichero box local
   rm -f "$BOX_FILE" || true
 
-  log_ok "Cleanup completed"
+  log_ok "Limpieza completada"
 fi
 
 # =========================
-# CHECK BOX EXISTS
+# COMPROBAR SI EL BOX YA EXISTE
 # =========================
 
 if vagrant box list | grep -q "$BOX_NAME" && [[ "$FORCE" == false ]]; then
-  log_ok "Box already exists"
+  log_ok "El box ya existe"
   exit 0
 fi
 
 mkdir -p "$ARTIFACTS_DIR"
 
 # =========================
-# DOWNLOAD CHR
+# DESCARGAR CHR
 # =========================
 
 if [[ ! -f "$ROUTEROS_VDI_PATH" ]]; then
-  log_info "Downloading CHR..."
+  log_info "Descargando CHR..."
   ZIP_FILE="${ARTIFACTS_DIR}/chr.zip"
 
   curl -L "$URL" -o "$ZIP_FILE"
@@ -135,10 +135,10 @@ if [[ ! -f "$ROUTEROS_VDI_PATH" ]]; then
 fi
 
 # =========================
-# CREATE VM
+# CREAR VM
 # =========================
 
-log_info "Creating VM"
+log_info "Creando la VM"
 
 "$VBOXMANAGE_BIN" createvm --name "$VM_NAME" --register
 
@@ -163,21 +163,21 @@ log_info "Creating VM"
   --medium "$ROUTEROS_VDI_PATH"
 
 # =========================
-# START VM
+# ARRANCAR VM
 # =========================
 
-log_info "Starting VM"
+log_info "Arrancando la VM"
 "$VBOXMANAGE_BIN" startvm "$VM_NAME" --type headless
 
 # =========================
-# WAIT SSH
+# ESPERAR SSH
 # =========================
 
-log_info "Cleaning SSH known_hosts entry"
+log_info "Limpiando la entrada known_hosts de SSH"
 
 ssh-keygen -R "[127.0.0.1]:$SSH_PORT" 2>/dev/null || true
 
-log_info "Waiting SSH..."
+log_info "Esperando SSH..."
 
 until ssh -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
@@ -185,34 +185,34 @@ until ssh -o StrictHostKeyChecking=no \
   admin@127.0.0.1 " /system identity print " \
   >/dev/null 2>&1
 do
-  log_info "Waiting SSH..."
+  log_info "Esperando SSH..."
   sleep 5
 done
 
 # =========================
-# PROVISION ROUTEROS
+# APROVISIONAR ROUTEROS
 # =========================
 
-log_info "Configuring RouterOS users + SSH"
+log_info "Configurando los usuarios de RouterOS y SSH"
 
 ssh -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
      -p "$SSH_PORT" admin@127.0.0.1 <<EOF
 
-# enable SSH service
+# habilitar el servicio SSH
 /ip service enable ssh
 
-# ensure vagrant user exists (critical for Vagrant lifecycle)
+# asegurar que existe el usuario vagrant (crítico para el ciclo de vida de Vagrant)
 /user add name=vagrant group=full password="vagrant" comment="Vagrant user" disabled=no
 
 EOF
 
 
 # =========================
-# INSTALL VAGRANT KEY
+# INSTALAR LA CLAVE DE VAGRANT
 # =========================
 
-log_info "Injecting Vagrant insecure key"
+log_info "Inyectando la clave insegura de Vagrant"
 
 scp -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
@@ -230,19 +230,19 @@ ssh -o StrictHostKeyChecking=no \
 EOF
 
 # =========================
-# SHUTDOWN
+# APAGADO
 # =========================
 
-log_info "Shutting down VM"
+log_info "Apagando la VM"
 
 "$VBOXMANAGE_BIN" controlvm "$VM_NAME" acpipowerbutton || true
 sleep 20
 
 # =========================
-# PACKAGE BOX
+# EMPAQUETAR EL BOX
 # =========================
 
-log_info "Packaging box"
+log_info "Empaquetando el box"
 
 vagrant package \
   --base "$VM_NAME" \
@@ -251,9 +251,9 @@ vagrant package \
 vagrant box add "$BOX_NAME" "$BOX_FILE" --force
 
 # =========================
-# CLEANUP
+# LIMPIEZA
 # =========================
 
 "$VBOXMANAGE_BIN" unregistervm "$VM_NAME" --delete || true
 
-log_ok "Box ready: $BOX_NAME"
+log_ok "Box listo: $BOX_NAME"
