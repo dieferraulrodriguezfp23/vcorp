@@ -19,11 +19,14 @@ Este documento explica qué hay en cada carpeta y para qué sirve cada fichero i
 │   └── scripts/
 │       └── bootstrap/
 ├── configs/
+│   ├── inventory/
 │   ├── preseed/
+│   ├── proxmox/
 │   └── ssh/
 ├── docs/
 └── infrastructure/
     ├── bash/
+    │   ├── equipment/
     │   └── templates/
     └── terraform/
 ```
@@ -38,11 +41,14 @@ Este documento explica qué hay en cada carpeta y para qué sirve cada fichero i
 | `artifacts/tools/` | Herramientas locales para preparar Proxmox cuando no están en el sistema. |
 | `automation/ansible/` | Reservado para Ansible. Ahora solo tiene `.gitkeep`. |
 | `automation/scripts/bootstrap/` | Scripts de arranque anteriores a Ansible. |
+| `configs/inventory/` | Inventario declarativo de las máquinas que crea `deploy_equipment`. |
 | `configs/preseed/` | Preseeds de Debian Server y Desktop y plantilla de postinstalación. |
+| `configs/proxmox/` | Plantilla del answer file usado para instalar Proxmox VE sin intervención. |
 | `configs/ssh/` | Claves públicas que usan los scripts y las cuentas de los equipos. Las privadas están en `~/.ssh`. |
-| `docs/` | Documentación: enunciado, componentes y despliegue. |
+| `docs/` | Documentación: guía de despliegue, enunciado, componentes y evidencias. |
 | `infrastructure/bash/` | Scripts que crean las máquinas, conectan las redes y configuran RouterOS y los templates. |
-| `infrastructure/bash/templates/` | Scripts para crear y preparar los templates Debian. |
+| `infrastructure/bash/equipment/` | Scripts para crear `pve01` y desplegar los clones enlazados del equipamiento. |
+| `infrastructure/bash/templates/` | Scripts para crear, continuar y preparar los templates Debian. |
 | `infrastructure/terraform/` | Reservado para Terraform. Ahora solo tiene `.gitkeep`. |
 
 ## Ficheros principales
@@ -75,6 +81,18 @@ Solo tienen un `.gitkeep`. Todavía no hay playbooks de Ansible ni configuració
 | `debian-desktop-preseed.cfg` | Respuestas del instalador para Debian Desktop. Instala LXQt, LightDM y Falkon. |
 | `debian-postinstall.sh.tmpl` | Plantilla de postinstalación basada en la de VirtualBox. Añade las claves SSH, la seguridad de SSH y el target por defecto. |
 
+### `configs/inventory/`
+
+| Fichero | Para qué sirve |
+| --- | --- |
+| `equipment.csv` | Inventario de servidores, impresoras y equipos de escritorio que crea `deploy_equipment`, con template, grupo y red interna. |
+
+### `configs/proxmox/`
+
+| Fichero | Para qué sirve |
+| --- | --- |
+| `pve01-answer.toml.tmpl` | Plantilla del answer file de Proxmox VE. El script genera la versión final con IP, gateway, DNS, MAC y claves públicas autorizadas. |
+
 ### `configs/ssh/`
 
 | Fichero | Para qué sirve |
@@ -98,15 +116,26 @@ Solo tienen un `.gitkeep`. Todavía no hay playbooks de Ansible ni configuració
 
 | Fichero | Para qué sirve |
 | --- | --- |
-| `template_base.sh` | Crea los templates Debian: descarga y verifica la ISO, crea la VM, instala sin asistente, comprueba, apaga, cambia la red y crea el snapshot `base`. |
+| `template_base.sh` | Crea, comprueba, reanuda y finaliza los templates Debian: descarga y verifica la ISO, instala sin asistente, añade claves SSH, apaga, quita NAT, conecta la red interna y crea el snapshot `base`. |
 | `create_templates.sh` | Punto de entrada de `make create_templates`. Permite crear el de servidor, el de escritorio o los dos. |
+| `resume_template.sh` | Punto de entrada de `make resume_template TEMPLATE_KIND=server|desktop` para terminar un template que quedó a medias o `saved`. |
+
+### `infrastructure/bash/equipment/`
+
+| Fichero | Para qué sirve |
+| --- | --- |
+| `pve_base.sh` | Prepara las herramientas de Proxmox, genera el answer file, crea la ISO autoinstalable, instala `pve01` y lo valida con virtualización anidada. |
+| `deploy_pve01.sh` | Punto de entrada para instalar solo `pve01`. |
+| `deploy_equipment.sh` | Punto de entrada de `make deploy_equipment`: comprueba templates, instala `pve01` y crea los clones enlazados del inventario. |
+| `delete_equipment.sh` | Borra los grupos de VirtualBox del equipamiento sin tocar routers ni templates. |
 
 ### `docs/`
 
 | Fichero | Para qué sirve |
 | --- | --- |
 | `components.md` | Este documento: estructura y finalidad de los ficheros. |
-| `deployment.md` | Despliegue de la delegación 22, decisiones, pruebas y problemas. |
+| `deployment.md` | Despliegue de la delegación 22, estado, decisiones, pruebas y problemas. |
+| `guia-actividades-1-2.md` | Guía completa para recrear desde cero la actividad 1 (routers) y la actividad 2 (templates, Proxmox y equipamiento). |
 | `statement.html` | Enunciado original del proyecto. |
 
 ### `artifacts/images/chr/`
@@ -121,5 +150,6 @@ Solo tienen un `.gitkeep`. Todavía no hay playbooks de Ansible ni configuració
 2. Ejecuta `make ssh-keys` para crear las claves.
 3. Ejecuta `make deploy-routers` para descargar CHR y crear los routers.
 4. Ejecuta `make create_templates` para crear los templates Debian.
-5. Usa `make delete-routers` o `make reset-routers` para borrar o rehacer los routers.
-6. Completa `make deploy_equipment` para crear los clones del equipamiento.
+5. Ejecuta `make deploy_equipment` para instalar `pve01` con Proxmox VE y crear los clones del equipamiento.
+6. Usa `make delete-routers`, `make reset-routers`, `make delete_equipment` o `make deploy_pve01` para limpiar o rehacer partes concretas.
+7. Lee `docs/guia-actividades-1-2.md` para el procedimiento completo desde cero.

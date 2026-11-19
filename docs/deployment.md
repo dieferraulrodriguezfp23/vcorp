@@ -107,12 +107,15 @@ Se ejecutó `/system reboot` en los cuatro routers. Después del reinicio se man
 
 ## Estado de la actividad 2
 
-El equipamiento se está desplegando poco a poco:
+Actividad 2 terminada y validada en la delegación 22:
 
-- **Template Debian Server**: creado, comprobado y con snapshot `base`.
-- **Template Debian Desktop**: instalación a medias y guardada en estado `saved`. Falta terminarla y crear el snapshot `base`.
-- **`pve01`**: falta instalarlo con Proxmox VE 9.2-1.
-- **Clones enlazados**: faltan por crear con `deploy_equipment`.
+- **Template Debian Server**: creado con `VBoxManage unattended install`, SSH, claves del profesor y del alumno, `pkgsel/run_tasksel boolean false` para no instalar GNOME por defecto y snapshot `base`.
+- **Template Debian Desktop**: instalado con LXQt, LightDM y Falkon. Se corrigió el conflicto entre GDM y LightDM, se purgaron Firefox/LibreOffice/GNOME innecesario y se creó el snapshot `base`.
+- **`pve01`**: instalado desatendidamente con Proxmox VE 9.2-1 mediante `proxmox-auto-install-assistant prepare-iso --fetch-from iso`. Tiene IP estática `10.22.0.133/26`, gateway `10.22.0.129`, virtualización anidada (`nested-hw-virt on`, `/dev/kvm`, `kvm_amd`) y snapshot `installed`.
+- **Equipamiento**: `deploy_equipment` crea 28 máquinas Debian con clonación enlazada desde los templates, sin NAT y con las redes internas exactas del enunciado.
+- **Validación**: todos los clones arrancan, los discos enlazados tienen `Parent UUID` correcto, solo `router0` conserva NAT y `pve01` hace ping a los cuatro routers y a una IP pública.
+
+La guía completa para recrear las actividades 1 y 2 está en [`guia-actividades-1-2.md`](guia-actividades-1-2.md).
 
 ## Problemas encontrados y soluciones
 
@@ -121,6 +124,10 @@ El equipamiento se está desplegando poco a poco:
 3. **Ruta por defecto duplicada**: los routers 1-3 podían recibir otra ruta por DHCP. Se desactivó `add-default-route` y `router0` quedó como única salida a Internet.
 4. **Nombres de los routers**: se adaptaron a `router0`...`router3` para cumplir el enunciado.
 5. **RouterOS pide contraseña al crear usuarios**: se crean con una contraseña aleatoria y, cuando las claves ya están importadas, se desactiva el acceso por contraseña.
+6. **El instalador de Debian Desktop arrastraba GNOME y Firefox**: el preseed no desactivaba tasksel y metía `task-gnome-desktop`. Se añadió `pkgsel/run_tasksel boolean false` y la postinstalación purga `firefox-esr`, `gdm3`, `gnome`, `gnome-core` y `task-gnome-desktop`.
+7. **LightDM fallaba al habilitarse porque GDM ya existía**: se elimina el symlink de `display-manager.service` antes de habilitar LightDM.
+8. **La validación de `pve01` no era accesible desde el host porque el enunciado prohíbe NAT en todas menos `router0`**: se validó con un reenvío temporal en `router0` y reglas NAT locales en el router, eliminándolas después. El script usa ahora ese salto temporal automatizado y lo limpia al terminar.
+9. **El snapshot de los templates se comprobaba con una búsqueda demasiado estricta**: el parseo de `VBoxManage snapshot list` usa ahora `Name: base` en lugar de `"base"`.
 
 ## Copias de seguridad
 

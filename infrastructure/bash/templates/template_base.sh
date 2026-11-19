@@ -54,7 +54,7 @@ generate_postinstall_script() {
     if [[ "$kind" == "server" ]]; then
         target_block="log_command_in_target systemctl set-default multi-user.target"
     else
-        target_block=$'log_command_in_target systemctl set-default graphical.target\nlog_command_in_target systemctl enable lightdm'
+        target_block=$'log_command_in_target apt-get -y purge firefox-esr gdm3 gnome gnome-core task-gnome-desktop || true\nlog_command_in_target /bin/sh -c \'rm -f /etc/systemd/system/display-manager.service && systemctl enable lightdm\'\nlog_command_in_target systemctl set-default graphical.target'
     fi
 
     mkdir -p "$(dirname "$output")"
@@ -213,6 +213,8 @@ verify_template_guest() {
              dpkg -s lxqt >/dev/null
              dpkg -s falkon >/dev/null
              dpkg -s lightdm >/dev/null
+             ! dpkg -s gdm3 >/dev/null 2>&1
+             ! dpkg -s firefox-esr >/dev/null 2>&1
             ' || return 1
     fi
 
@@ -266,6 +268,48 @@ create_debian_template() {
 
     if ! wait_ssh_key 127.0.0.1 "$TEMPLATE_PORT" "$SYSADMIN_PRIVATE_KEY_FILE" "$TEMPLATE_USER" 1800; then
         log_err "No se ha podido conectar con '$TEMPLATE_NAME' después de la instalación."
+        return 1
+    fi
+
+    verify_template_guest "$TEMPLATE_NAME" "$kind" || return 1
+    finalize_template "$TEMPLATE_NAME" "$kind" || return 1
+}
+
+resume_debian_template() {
+    local kind="$1"
+    local state
+
+    template_parameters "$kind" || return 1
+
+    if ! vm_exists "$TEMPLATE_NAME"; then
+        log_warn "El template '$TEMPLATE_NAME' no existe. Se crea desde cero."
+        create_debian_template "$kind"
+        return $?
+    fi
+
+    if "$VBOXMANAGE_BIN" snapshot "$TEMPLATE_NAME" list 2>/dev/null | grep -q 'Name: base'; then
+        log_ok "El template '$TEMPLATE_NAME' ya tiene el snapshot 'base'."
+        return 0
+    fi
+
+    state="$("$VBOXMANAGE_BIN" showvminfo "$TEMPLATE_NAME" --machinereadable | grep '^VMState=' | cut -d'"' -f2)"
+
+    case "$state" in
+        saved|poweroff)
+            log_info "Reanudando '$TEMPLATE_NAME' desde el estado '$state'"
+            "$VBOXMANAGE_BIN" startvm "$TEMPLATE_NAME" --type headless || return 1
+            ;;
+        running)
+            log_info "'$TEMPLATE_NAME' ya está en ejecución"
+            ;;
+        *)
+            log_err "Estado no esperado para '$TEMPLATE_NAME': $state"
+            return 1
+            ;;
+    esac
+
+    if ! wait_ssh_key 127.0.0.1 "$TEMPLATE_PORT" "$SYSADMIN_PRIVATE_KEY_FILE" "$TEMPLATE_USER" 1800; then
+        log_err "No se ha podido conectar con '$TEMPLATE_NAME'."
         return 1
     fi
 

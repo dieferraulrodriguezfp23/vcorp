@@ -13,13 +13,13 @@ export VCORP_TOOLS_DIR PVE_ASSISTANT_VERSION PVE_ASSISTANT_URL
 export DEBIAN_SERVER_TEMPLATE DEBIAN_DESKTOP_TEMPLATE TEMPLATE_SSH_PORT_SERVER TEMPLATE_SSH_PORT_DESKTOP TEMPLATE_USER
 export TEMPLATE_SERVER_CPU TEMPLATE_SERVER_MEMORY TEMPLATE_SERVER_DISK_MB TEMPLATE_DESKTOP_CPU TEMPLATE_DESKTOP_MEMORY TEMPLATE_DESKTOP_DISK_MB
 export VBOX_BASEFOLDER VM_SERVERS_GROUP VM_PRINTERS_GROUP VM_DESKTOPS_GROUP VM_DIRECTION_GROUP EQUIPMENT_INVENTORY
-export PVE01_NAME PVE01_CPU PVE01_MEMORY PVE01_DISK_MB PVE01_IP PVE01_GATEWAY PVE01_DNS PVE01_NETWORK PVE01_TEMP_SSH_PORT
+export PVE01_NAME PVE01_CPU PVE01_MEMORY PVE01_DISK_MB PVE01_IP PVE01_GATEWAY PVE01_DNS PVE01_NETWORK PVE01_TEMP_SSH_PORT ROUTER0_SSH_PORT
 export TEMPLATE_AUDITOR_KEY TEMPLATE_SYSADMIN_KEY
 
 BASH_DIR := $(PROJECT_ROOT)/infrastructure/bash
 BOOTSTRAP_DIR := $(PROJECT_ROOT)/automation/scripts/bootstrap
 
-.PHONY: help deploy-routers delete-routers reset-routers reset_routers ssh-keys routeros-box create_templates deploy_equipment delete_equipment
+.PHONY: help deploy-routers delete-routers reset-routers reset_routers ssh-keys routeros-box create_templates resume_template deploy_pve01 deploy_equipment delete_equipment
 
 help:
 	@printf '%s\n' \
@@ -30,6 +30,8 @@ help:
 	  '  ssh-keys         Generar las claves SSH del proyecto' \
 	  '  routeros-box     Crear la caja de Vagrant de RouterOS' \
 	  '  create_templates Crear los templates Debian Server y Desktop' \
+	  '  resume_template  Terminar un template Debian pausado' \
+	  '  deploy_pve01     Instalar y validar pve01 con Proxmox VE' \
 	  '  deploy_equipment Desplegar todo el equipamiento de VirtualCorp' \
 	  '  delete_equipment Eliminar el grupo de máquinas virtuales del equipamiento'
 
@@ -54,6 +56,12 @@ routeros-box:
 
 create_templates:
 	"$(BASH_DIR)/templates/create_templates.sh" $(TEMPLATE_KIND)
+
+resume_template:
+	"$(BASH_DIR)/templates/resume_template.sh" $(TEMPLATE_KIND)
+
+deploy_pve01:
+	"$(BASH_DIR)/equipment/deploy_pve01.sh"
 
 deploy_equipment:
 	"$(BASH_DIR)/equipment/deploy_equipment.sh"

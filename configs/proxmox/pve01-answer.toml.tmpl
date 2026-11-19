@@ -1,0 +1,23 @@
+[global]
+keyboard = "en-us"
+country = "es"
+fqdn = "pve01.virtualcorp.local"
+mailto = "root@virtualcorp.local"
+timezone = "Europe/Madrid"
+root-password-hashed = "__ROOT_PASSWORD_HASH__"
+root-ssh-keys = [
+    "__AUDITOR_KEY__",
+    "__SYSADMIN_KEY__",
+]
+reboot-mode = "power-off"
+
+[network]
+source = "from-answer"
+cidr = "__PVE01_IP__"
+gateway = "__PVE01_GATEWAY__"
+dns = "__PVE01_DNS__"
+filter.ID_NET_NAME_MAC = "*__PVE01_MAC__"
+
+[disk-setup]
+filesystem = "ext4"
+disk-list = ["sda"]

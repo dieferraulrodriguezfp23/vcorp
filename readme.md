@@ -22,15 +22,17 @@ Terminada:
 
 ### Actividad 2 — Templates y equipamiento
 
-En marcha:
+Terminada:
 
-- Template **Debian Server**: creado, comprobado y con snapshot `base`.
-- Template **Debian Desktop**: la instalación está a medias y guardada en estado `saved`. Falta terminarla y crear el snapshot `base`.
-- `pve01` con Proxmox VE 9.2-1: falta instalarlo.
-- Clones enlazados del equipamiento: faltan por crear.
-- `create_templates` ya funciona. `deploy_equipment` todavía no está terminado.
+- Template **Debian Server** minimal con SSH y claves SSH; snapshot `base`.
+- Template **Debian Desktop** con LXQt, Falkon y LightDM; sin GNOME, Firefox ni LibreOffice; snapshot `base`.
+- `pve01` instalado de forma desatendida con Proxmox VE 9.2-1, IP estática `10.22.0.133/26`, gateway `10.22.0.129` y virtualización anidada validada.
+- `deploy_equipment` creado: 3 servidores Debian, 4 impresoras, 4 expositores, 2 conserjes, 6 equipos de desarrollo, 6 equipos corporativos y 3 equipos de dirección.
+- Todos los equipos Debian usan clonación enlazada y quedan conectados a las redes internas exactas del enunciado.
+- Solo `router0` conserva una interfaz NAT.
+- Se han probado el arranque de los clones, las redes, las claves SSH y la conectividad de `pve01` con routers e Internet.
 
-El detalle del estado, las pruebas y los problemas encontrados está en [`docs/deployment.md`](docs/deployment.md).
+La guía completa para recrear el laboratorio está en [`docs/guia-actividades-1-2.md`](docs/guia-actividades-1-2.md).
 
 ## Topología y direcciones
 
@@ -204,8 +206,6 @@ La documentación se limita a lo necesario para montar, probar y mantener el lab
 
 ## Próximos pasos
 
-1. Terminar el template Debian Desktop y crear su snapshot `base`.
-2. Instalar `pve01` con Proxmox VE 9.2-1 de forma desatendida.
-3. Completar `deploy_equipment` con los clones enlazados del inventario.
-4. Probar redes, claves SSH, clones enlazados y virtualización anidada.
-5. Actualizar la documentación y publicar el tag `deploy_equipment`.
+1. Configurar y probar los servicios de red en los equipos ya desplegados.
+2. Añadir DHCP, DNS, directorio, impresoras, web, base de datos y el resto de servicios previstos.
+3. Revisar la seguridad y las políticas de acceso entre zona privada, DMZ y plantas.
