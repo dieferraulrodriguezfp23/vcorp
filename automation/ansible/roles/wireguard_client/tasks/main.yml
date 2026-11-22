@@ -1,0 +1,66 @@
+---
+- name: Check required WireGuard key files exist
+  ansible.builtin.stat:
+    path: "{{ vcorp_wg_secret_dir }}/{{ item }}"
+  loop:
+    - router0_server_public.key
+    - client_private.key
+  register: wg_client_key_files
+  delegate_to: localhost
+  changed_when: false
+
+- name: Ensure required WireGuard key files are present
+  ansible.builtin.assert:
+    that:
+      - wg_client_key_files.results | selectattr('stat.exists') | list | length == 2
+    fail_msg: "Executa primer wireguard_server o configure_wireguard.yml."
+
+- name: Read server public key
+  ansible.builtin.slurp:
+    src: "{{ vcorp_wg_secret_dir }}/router0_server_public.key"
+  register: wg_server_public_key_slurp
+  delegate_to: localhost
+  no_log: true
+
+- name: Read client private key
+  ansible.builtin.slurp:
+    src: "{{ vcorp_wg_secret_dir }}/client_private.key"
+  register: wg_client_private_key_slurp
+  delegate_to: localhost
+  no_log: true
+
+- name: Define client facts
+  ansible.builtin.set_fact:
+    wg_server_public_key_content: "{{ wg_server_public_key_slurp.content | b64decode | trim }}"
+    wg_client_private_key_content: "{{ wg_client_private_key_slurp.content | b64decode | trim }}"
+  delegate_to: localhost
+  no_log: true
+
+- name: Generate local control-node client configuration
+  ansible.builtin.template:
+    src: client.conf.j2
+    dest: "{{ wg_client_file_local }}"
+    mode: "0600"
+  delegate_to: localhost
+  no_log: true
+  vars:
+    wg_client_endpoint: "{{ wg_endpoint }}"
+    wg_client_allowed_ips: "{{ wg_allowed_ips }}"
+
+- name: Generate internal test client configuration for pve01
+  ansible.builtin.template:
+    src: client.conf.j2
+    dest: "{{ wg_client_file_internal }}"
+    mode: "0600"
+  delegate_to: localhost
+  no_log: true
+  vars:
+    wg_client_endpoint: "{{ wg_endpoint_internal_default }}"
+    wg_client_allowed_ips: "{{ wg_allowed_ips_internal_client }}"
+
+- name: Ensure WireGuard secret directory remains private
+  ansible.builtin.file:
+    path: "{{ vcorp_wg_secret_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost

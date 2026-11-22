@@ -1,0 +1,26 @@
+---
+wg_interface: wg1
+wg_listen_port: 51820
+wg_tunnel_subnet: "10.22.10.0/24"
+wg_tunnel_prefix_length: 24
+wg_server_address: "10.22.10.1"
+wg_client_address: "10.22.10.2"
+wg_client_name: vcorp-router0
+wg_peer_comment: virtualcorp-wireguard
+wg_address_list: wg-allowed-lans
+
+wg_allowed_lans:
+  - 10.22.0.0/25
+  - 10.22.0.128/26
+  - 10.22.0.192/27
+  - 10.22.0.224/30
+  - 10.22.0.228/30
+  - 10.22.0.232/30
+  - 10.22.1.0/24
+  - 10.22.2.0/24
+  - 10.22.3.0/24
+  - 10.22.3.128/25
+
+wg_rip_instance: rip1
+wg_nat_vbox_forward: true
+wg_nat_vbox_name: wireguard

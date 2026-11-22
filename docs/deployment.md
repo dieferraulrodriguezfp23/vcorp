@@ -117,6 +117,24 @@ Actividad 2 terminada y validada en la delegación 22:
 
 La guía completa para recrear las actividades 1 y 2 está en [`guia-actividades-1-2.md`](guia-actividades-1-2.md).
 
+## Estado de la actividad 3
+
+Actividad 3 terminada y validada:
+
+- Ansible está instalado en el nodo de control y gestiona las VMs con `VBoxManage`.
+- `automation/ansible/playbooks/start_routers.yml` arranca `router0`-`router3`.
+- `automation/ansible/playbooks/stop_routers.yml` los apaga ordenadamente con ACPI.
+- Los playbooks son idempotentes: una segunda ejecución no reinicia routers ya encendidos ni apaga routers ya apagados.
+- `automation/ansible/playbooks/configure_wireguard.yml` crea o corrige en `router0`:
+  - interfaz WireGuard `wg1`,
+  - dirección túnel `10.22.10.1/24`,
+  - peer del cliente `10.22.10.2/32`,
+  - reglas de firewall para UDP 51820 y forward restringido,
+  - plantilla RIP para que las rutas de retorno se propaguen.
+- El cliente se genera en `artifacts/vpn/`, fuera de Git.
+- La validación con `pve01` como cliente temporal muestra handshake y ping correcto a `10.22.10.1` y a los cuatro routers internos.
+- El playbook de prueba abre SSH temporal hacia `pve01` mediante un salto NAT por `router0` y lo limpia al terminar.
+
 ## Problemas encontrados y soluciones
 
 1. **La clave del profesor se podía sobrescribir**: `create_ssh_keys.sh` generaba una clave `vcorp_auditor` y podía sustituir la del profesor. Se comentó esa generación y se conservó el fichero original.
@@ -128,6 +146,9 @@ La guía completa para recrear las actividades 1 y 2 está en [`guia-actividades
 7. **LightDM fallaba al habilitarse porque GDM ya existía**: se elimina el symlink de `display-manager.service` antes de habilitar LightDM.
 8. **La validación de `pve01` no era accesible desde el host porque el enunciado prohíbe NAT en todas menos `router0`**: se validó con un reenvío temporal en `router0` y reglas NAT locales en el router, eliminándolas después. El script usa ahora ese salto temporal automatizado y lo limpia al terminar.
 9. **El snapshot de los templates se comprobaba con una búsqueda demasiado estricta**: el parseo de `VBoxManage snapshot list` usa ahora `Name: base` en lugar de `"base"`.
+10. **`community.routeros.command` colgaba consultando `routerboard print` en CHR**: para tareas de RouterOS en este host se usa SSH controlado desde Ansible con `ansible.builtin.command`, manteniendo comprobaciones previas para ser idempotente.
+11. **RouterOS rechaza claves base64 sin comillas en `private-key` y `public-key`**: las órdenes de alta de interfaz y peer ahora entrecomillan las claves.
+12. **El cliente interno de prueba perdía el acceso SSH por routing loop**: se ajustaron `AllowedIPs` del cliente interno para no enrutar por la VPN la red de tránsito usada como endpoint.
 
 ## Copias de seguridad
 

@@ -1,0 +1,13 @@
+---
+- name: Configure WireGuard server on router0
+  hosts: edge
+  gather_facts: false
+  roles:
+    - role: wireguard_server
+
+- name: Generate WireGuard client configuration on the control node
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  roles:
+    - role: wireguard_client

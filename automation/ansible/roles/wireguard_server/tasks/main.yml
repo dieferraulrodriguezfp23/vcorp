@@ -1,0 +1,336 @@
+---
+- name: Define RouterOS SSH command
+  ansible.builtin.set_fact:
+    wg_routeros_ssh: "ssh -i {{ vcorp_private_key_file }} {{ router0_ssh_opts }} -p {{ router0_ssh_port }} {{ router0_user }}@{{ router0_host }}"
+  delegate_to: localhost
+
+- name: Ensure WireGuard secret directory exists on the control node
+  ansible.builtin.file:
+    path: "{{ vcorp_wg_secret_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Check server private key
+  ansible.builtin.stat:
+    path: "{{ vcorp_wg_secret_dir }}/router0_server_private.key"
+  register: wg_server_private_key_stat
+  delegate_to: localhost
+
+- name: Generate server private key
+  ansible.builtin.command: wg genkey
+  register: wg_server_private_key_gen
+  when: not wg_server_private_key_stat.stat.exists
+  changed_when: true
+  delegate_to: localhost
+  no_log: true
+
+- name: Write server private key
+  ansible.builtin.copy:
+    content: "{{ wg_server_private_key_gen.stdout }}\n"
+    dest: "{{ vcorp_wg_secret_dir }}/router0_server_private.key"
+    mode: "0600"
+  when: not wg_server_private_key_stat.stat.exists
+  delegate_to: localhost
+  no_log: true
+
+- name: Read server private key
+  ansible.builtin.slurp:
+    src: "{{ vcorp_wg_secret_dir }}/router0_server_private.key"
+  register: wg_server_private_key_slurp
+  delegate_to: localhost
+  no_log: true
+
+- name: Derive server public key
+  ansible.builtin.command:
+    argv:
+      - wg
+      - pubkey
+    stdin: "{{ wg_server_private_key_content }}"
+  register: wg_server_public_key_cmd
+  changed_when: false
+  delegate_to: localhost
+  no_log: true
+  vars:
+    wg_server_private_key_content: "{{ wg_server_private_key_slurp.content | b64decode | trim }}"
+
+- name: Store server public key fact
+  ansible.builtin.set_fact:
+    wg_server_public_key: "{{ wg_server_public_key_cmd.stdout | trim }}"
+  delegate_to: localhost
+
+- name: Write server public key
+  ansible.builtin.copy:
+    content: "{{ wg_server_public_key }}\n"
+    dest: "{{ vcorp_wg_secret_dir }}/router0_server_public.key"
+    mode: "0644"
+
+- name: Check client private key
+  ansible.builtin.stat:
+    path: "{{ vcorp_wg_secret_dir }}/client_private.key"
+  register: wg_client_private_key_stat
+  delegate_to: localhost
+
+- name: Generate client private key
+  ansible.builtin.command: wg genkey
+  register: wg_client_private_key_gen
+  when: not wg_client_private_key_stat.stat.exists
+  changed_when: true
+  delegate_to: localhost
+  no_log: true
+
+- name: Write client private key
+  ansible.builtin.copy:
+    content: "{{ wg_client_private_key_gen.stdout }}\n"
+    dest: "{{ vcorp_wg_secret_dir }}/client_private.key"
+    mode: "0600"
+  when: not wg_client_private_key_stat.stat.exists
+  delegate_to: localhost
+  no_log: true
+
+- name: Read client private key
+  ansible.builtin.slurp:
+    src: "{{ vcorp_wg_secret_dir }}/client_private.key"
+  register: wg_client_private_key_slurp
+  delegate_to: localhost
+  no_log: true
+
+- name: Derive client public key
+  ansible.builtin.command:
+    argv:
+      - wg
+      - pubkey
+    stdin: "{{ wg_client_private_key_content }}"
+  register: wg_client_public_key_cmd
+  changed_when: false
+  delegate_to: localhost
+  no_log: true
+  vars:
+    wg_client_private_key_content: "{{ wg_client_private_key_slurp.content | b64decode | trim }}"
+
+- name: Store client public key fact
+  ansible.builtin.set_fact:
+    wg_client_public_key: "{{ wg_client_public_key_cmd.stdout | trim }}"
+  delegate_to: localhost
+
+- name: Write client public key
+  ansible.builtin.copy:
+    content: "{{ wg_client_public_key }}\n"
+    dest: "{{ vcorp_wg_secret_dir }}/client_public.key"
+    mode: "0644"
+
+- name: Read server private key content
+  ansible.builtin.set_fact:
+    wg_server_private_key_content: "{{ wg_server_private_key_slurp.content | b64decode | trim }}"
+  no_log: true
+
+- name: Check WireGuard interface on router0
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard print detail where name={{ wg_interface }}'"
+  register: wg_interface_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Remove WireGuard interface if it has an unexpected listen port
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard remove [find name={{ wg_interface }}]'"
+  when:
+    - wg_interface in wg_interface_check.stdout
+    - "'listen-port=' + (wg_listen_port | string) not in wg_interface_check.stdout"
+  changed_when: true
+  failed_when: false
+  delegate_to: localhost
+
+- name: Re-check WireGuard interface after possible removal
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard print detail where name={{ wg_interface }}'"
+  register: wg_interface_check2
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add WireGuard interface on router0
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard add name=\"{{ wg_interface }}\" listen-port={{ wg_listen_port }} private-key=\"{{ wg_server_private_key_content }}\"'"
+  when: wg_interface not in wg_interface_check2.stdout
+  changed_when: true
+  no_log: true
+  delegate_to: localhost
+
+- name: Verify WireGuard interface
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard print detail where name={{ wg_interface }}'"
+  register: wg_interface_verify
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Fail if WireGuard interface was not created
+  ansible.builtin.assert:
+    that:
+      - wg_interface in wg_interface_verify.stdout
+    fail_msg: "No s'ha creat la interfície WireGuard."
+
+- name: Check WireGuard address
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip address print detail where interface={{ wg_interface }}'"
+  register: wg_address_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Remove WireGuard address if it does not match the expected address
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip address remove [find interface={{ wg_interface }}]'"
+  when:
+    - wg_interface in wg_address_check.stdout
+    - wg_server_address not in wg_address_check.stdout
+  changed_when: true
+  failed_when: false
+  delegate_to: localhost
+
+- name: Re-check WireGuard address
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip address print detail where interface={{ wg_interface }}'"
+  register: wg_address_check2
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add WireGuard address
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip address add address={{ wg_server_address }}/{{ wg_tunnel_prefix_length }} interface={{ wg_interface }} comment=virtualcorp-wg'"
+  when: wg_interface not in wg_address_check2.stdout
+  changed_when: true
+  delegate_to: localhost
+
+- name: Check WireGuard peer
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard peers print detail where interface={{ wg_interface }}'"
+  register: wg_peer_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Remove WireGuard peer if it is missing or different
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard peers remove [find interface={{ wg_interface }}]'"
+  when:
+    - "'public-key' in wg_peer_check.stdout"
+    - wg_client_public_key not in wg_peer_check.stdout
+  changed_when: true
+  failed_when: false
+  delegate_to: localhost
+
+- name: Re-check WireGuard peer
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard peers print detail where interface={{ wg_interface }}'"
+  register: wg_peer_check2
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add WireGuard peer
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/interface wireguard peers add interface=\"{{ wg_interface }}\" public-key=\"{{ wg_client_public_key }}\" allowed-address=\"{{ wg_client_address }}/32\" persistent-keepalive=25 comment=\"{{ wg_peer_comment }}\"'"
+  when: wg_client_public_key not in wg_peer_check2.stdout
+  changed_when: true
+  no_log: true
+  delegate_to: localhost
+
+- name: Check firewall address list
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall address-list print where list=wg-allowed-lans'"
+  register: wg_address_list_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add missing allowed LAN address list entries
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall address-list add list=wg-allowed-lans address={{ item }} comment=virtualcorp-wg'"
+  loop: "{{ wg_allowed_lans }}"
+  when: item not in wg_address_list_check.stdout
+  changed_when: true
+  delegate_to: localhost
+
+- name: Check firewall filter
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall filter print'"
+  register: wg_filter_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add firewall input rule for WireGuard UDP
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall filter add chain=input action=accept protocol=udp dst-port={{ wg_listen_port }} comment=virtualcorp-wg-input'"
+  when: "'virtualcorp-wg-input' not in wg_filter_check.stdout"
+  changed_when: true
+  delegate_to: localhost
+
+- name: Add firewall forward accept rule for allowed LANs
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall filter add chain=forward action=accept in-interface=wg1 dst-address-list=wg-allowed-lans comment=virtualcorp-wg-forward-accept'"
+  when: "'virtualcorp-wg-forward-accept' not in wg_filter_check.stdout"
+  changed_when: true
+  delegate_to: localhost
+
+- name: Add firewall forward reject rule for other WireGuard traffic
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall filter add chain=forward action=reject in-interface=wg1 dst-address-list=!wg-allowed-lans comment=virtualcorp-wg-forward-reject'"
+  when: "'virtualcorp-wg-forward-reject' not in wg_filter_check.stdout"
+  changed_when: true
+  delegate_to: localhost
+
+- name: Check RIP interface template
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/routing rip interface-template print'"
+  register: wg_rip_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Add WireGuard interface to RIP template
+  ansible.builtin.command: "{{ wg_routeros_ssh }} '/routing rip interface-template add instance={{ wg_rip_instance }} interfaces={{ wg_interface }}'"
+  when:
+    - wg_rip_instance in wg_rip_check.stdout
+    - wg_interface not in wg_rip_check.stdout
+  changed_when: true
+  delegate_to: localhost
+
+- name: Check VirtualBox state for WireGuard forwarding
+  ansible.builtin.command:
+    argv:
+      - "{{ vboxmanage_bin }}"
+      - showvminfo
+      - router0
+      - --machinereadable
+  register: vbox_wireguard_info
+  changed_when: false
+  delegate_to: localhost
+
+- name: Define expected WireGuard VBox forwarding line
+  ansible.builtin.set_fact:
+    wg_vbox_nat_expected: "{{ wg_nat_vbox_name }},udp,127.0.0.1,{{ wg_listen_port }},,{{ wg_listen_port }}"
+
+- name: Remove existing WireGuard VBox forwarding rule if it is wrong
+  ansible.builtin.command:
+    argv:
+      - "{{ vboxmanage_bin }}"
+      - controlvm
+      - router0
+      - natpf1
+      - delete
+      - "{{ wg_nat_vbox_name }}"
+  when:
+    - wg_nat_vbox_name + ",udp," in vbox_wireguard_info.stdout
+    - wg_vbox_nat_expected not in vbox_wireguard_info.stdout
+  changed_when: true
+  failed_when: false
+  delegate_to: localhost
+
+- name: Re-check VirtualBox state for WireGuard forwarding
+  ansible.builtin.command:
+    argv:
+      - "{{ vboxmanage_bin }}"
+      - showvminfo
+      - router0
+      - --machinereadable
+  register: vbox_wireguard_info2
+  changed_when: false
+  delegate_to: localhost
+
+- name: Add VirtualBox UDP forwarding for WireGuard
+  ansible.builtin.command:
+    argv:
+      - "{{ vboxmanage_bin }}"
+      - controlvm
+      - router0
+      - natpf1
+      - "{{ wg_vbox_nat_expected }}"
+  when: wg_vbox_nat_expected not in vbox_wireguard_info2.stdout
+  changed_when: true
+  delegate_to: localhost

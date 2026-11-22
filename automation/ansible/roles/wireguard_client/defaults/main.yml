@@ -1,0 +1,31 @@
+---
+wg_client_address: "10.22.10.2"
+wg_server_address: "10.22.10.1"
+wg_tunnel_prefix_length: 24
+wg_endpoint: "{{ wg_endpoint_local | default('127.0.0.1:51820') }}"
+wg_client_file_local: "{{ vcorp_wg_secret_dir }}/vcorp-router0.conf"
+wg_client_file_internal: "{{ vcorp_wg_secret_dir }}/vcorp-pve01.conf"
+
+wg_allowed_ips:
+  - "10.22.10.1/32"
+  - "10.22.0.0/25"
+  - "10.22.0.128/26"
+  - "10.22.0.192/27"
+  - "10.22.0.224/30"
+  - "10.22.0.228/30"
+  - "10.22.0.232/30"
+  - "10.22.1.0/24"
+  - "10.22.2.0/24"
+  - "10.22.3.0/24"
+  - "10.22.3.128/25"
+
+wg_allowed_ips_internal_client:
+  - "10.22.10.1/32"
+  - "10.22.0.0/25"
+  - "10.22.0.192/27"
+  - "10.22.1.0/24"
+  - "10.22.2.0/24"
+  - "10.22.3.0/25"
+  - "10.22.3.128/25"
+
+wg_endpoint_internal_default: "{{ wg_endpoint_internal | default('10.22.0.225:51820') }}"

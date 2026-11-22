@@ -1,0 +1,13 @@
+---
+- name: Stop VirtualCorp routers
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Apply stop role to each router
+      ansible.builtin.include_role:
+        name: stop_vm
+      vars:
+        vm_name: "{{ router_vm }}"
+      loop: "{{ routers }}"
+      loop_control:
+        loop_var: router_vm

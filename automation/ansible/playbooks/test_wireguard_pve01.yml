@@ -1,0 +1,201 @@
+---
+- name: Open temporary SSH access to pve01 through router0
+  hosts: router0
+  gather_facts: false
+  tasks:
+    - name: Define RouterOS SSH command
+      ansible.builtin.set_fact:
+        wg_routeros_ssh: "ssh -i {{ vcorp_private_key_file }} {{ router0_ssh_opts }} -p {{ router0_ssh_port }} {{ router0_user }}@{{ router0_host }}"
+      delegate_to: localhost
+
+    - name: Remove previous temporary SSH forwarding rules if they exist
+      ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall nat remove [find comment=pve-ssh-test]'; {{ wg_routeros_ssh }} '/ip firewall nat remove [find comment=pve-ssh-test-src]'"
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Add temporary destination NAT for pve01 SSH
+      ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall nat add chain=dstnat protocol=tcp dst-port=2222 in-interface=ether1 action=dst-nat to-addresses=10.22.0.133 to-ports=22 comment=pve-ssh-test'"
+      changed_when: true
+      delegate_to: localhost
+
+    - name: Add temporary source NAT for pve01 SSH return path
+      ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall nat add chain=srcnat src-address=10.0.2.0/24 dst-address=10.22.0.133 action=masquerade comment=pve-ssh-test-src'"
+      changed_when: true
+      delegate_to: localhost
+
+- name: Add VirtualBox forwarding for temporary pve01 SSH
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Remove existing temporary pve01 SSH forwarding if it is wrong
+      ansible.builtin.command:
+        argv:
+          - "{{ vboxmanage_bin }}"
+          - controlvm
+          - router0
+          - natpf1
+          - delete
+          - pve01-ssh
+      changed_when: true
+      failed_when: false
+
+    - name: Add temporary pve01 SSH forwarding
+      ansible.builtin.command:
+        argv:
+          - "{{ vboxmanage_bin }}"
+          - controlvm
+          - router0
+          - natpf1
+          - "pve01-ssh,tcp,127.0.0.1,2222,,2222"
+      changed_when: true
+
+    - name: Wait until temporary pve01 SSH port is open
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 2222
+        timeout: 240
+
+    - name: Wait for pve01 SSH connection
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+      delegate_to: pve01
+
+- name: Test WireGuard client from pve01
+  hosts: pve01_client
+  gather_facts: false
+  tasks:
+    - name: Remove Proxmox enterprise repository if present
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/pve-enterprise.sources
+        state: absent
+
+    - name: Remove Ceph enterprise repository if present
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/ceph.sources
+        state: absent
+
+    - name: Set public DNS resolver temporarily
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+        mode: "0644"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install wireguard-tools
+      ansible.builtin.apt:
+        name: wireguard-tools
+        state: present
+
+    - name: Ensure /etc/wireguard exists
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        mode: "0700"
+
+    - name: Copy WireGuard internal test client configuration to pve01
+      ansible.builtin.copy:
+        src: "{{ vcorp_wg_secret_dir }}/vcorp-pve01.conf"
+        dest: /etc/wireguard/vcorp.conf
+        mode: "0600"
+      no_log: true
+
+    - name: Bring up WireGuard interface
+      ansible.builtin.command: wg-quick up vcorp
+      register: wg_up
+      changed_when: true
+
+    - name: Show WireGuard status
+      ansible.builtin.command: wg show
+      register: wg_show
+      changed_when: false
+
+    - name: Ping WireGuard server tunnel address
+      ansible.builtin.command: ping -c 3 10.22.10.1
+      register: ping_wg_server
+      changed_when: false
+      failed_when: false
+
+    - name: Ping router0 internal address
+      ansible.builtin.command: ping -c 3 10.22.0.225
+      register: ping_router0
+      changed_when: false
+      failed_when: false
+
+    - name: Ping router1 internal address
+      ansible.builtin.command: ping -c 3 10.22.0.226
+      register: ping_router1
+      changed_when: false
+      failed_when: false
+
+    - name: Ping router2 internal address
+      ansible.builtin.command: ping -c 3 10.22.0.230
+      register: ping_router2
+      changed_when: false
+      failed_when: false
+
+    - name: Ping router3 internal address
+      ansible.builtin.command: ping -c 3 10.22.0.234
+      register: ping_router3
+      changed_when: false
+      failed_when: false
+
+    - name: Bring down WireGuard interface
+      ansible.builtin.command: wg-quick down vcorp
+      register: wg_down
+      changed_when: true
+
+    - name: Show validation output
+      ansible.builtin.debug:
+        msg:
+          - "wg show: {{ wg_show.stdout }}"
+          - "ping 10.22.10.1: {{ ping_wg_server.stdout }}"
+          - "ping 10.22.0.225: {{ ping_router0.stdout }}"
+          - "ping 10.22.0.226: {{ ping_router1.stdout }}"
+          - "ping 10.22.0.230: {{ ping_router2.stdout }}"
+          - "ping 10.22.0.234: {{ ping_router3.stdout }}"
+
+- name: Cleanup temporary pve01 SSH forwarding
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Remove temporary pve01 SSH forwarding from VirtualBox
+      ansible.builtin.command:
+        argv:
+          - "{{ vboxmanage_bin }}"
+          - controlvm
+          - router0
+          - natpf1
+          - delete
+          - pve01-ssh
+      changed_when: true
+      failed_when: false
+
+- name: Cleanup temporary pve01 NAT on router0
+  hosts: router0
+  gather_facts: false
+  tasks:
+    - name: Define RouterOS SSH command
+      ansible.builtin.set_fact:
+        wg_routeros_ssh: "ssh -i {{ vcorp_private_key_file }} {{ router0_ssh_opts }} -p {{ router0_ssh_port }} {{ router0_user }}@{{ router0_host }}"
+      delegate_to: localhost
+
+    - name: Remove temporary destination NAT
+      ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall nat remove [find comment=pve-ssh-test]'"
+      changed_when: true
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Remove temporary source NAT
+      ansible.builtin.command: "{{ wg_routeros_ssh }} '/ip firewall nat remove [find comment=pve-ssh-test-src]'"
+      changed_when: true
+      failed_when: false
+      delegate_to: localhost

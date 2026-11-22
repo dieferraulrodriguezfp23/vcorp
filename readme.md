@@ -20,6 +20,17 @@ Terminada:
 - Acceso SSH con contraseña desactivado.
 - Probada la conectividad, la salida a Internet y el reinicio de los routers.
 
+### Actividad 3 — Ansible y WireGuard
+
+Terminada:
+
+- Inventaris i playbooks d'Ansible per arrencar i aturar els quatre routers amb idempotència.
+- WireGuard configurat a `router0` amb Ansible: interfície `wg1`, peer del client, firewall, adreça túnel i RIP.
+- Client WireGuard generat fora de Git en `artifacts/vpn/`.
+- Validació real des de `pve01` amb endpoint intern `10.22.0.225:51820`: handshake correcte, ping a `10.22.10.1` i als quatre routers.
+- Accessos temporals SSH per validar `pve01` creats i eliminats automàticament.
+- Tag Git: `VPN`.
+
 ### Actividad 2 — Templates y equipamiento
 
 Terminada:
@@ -32,7 +43,7 @@ Terminada:
 - Solo `router0` conserva una interfaz NAT.
 - Se han probado el arranque de los clones, las redes, las claves SSH y la conectividad de `pve01` con routers e Internet.
 
-La guía completa para recrear el laboratorio está en [`docs/guia-actividades-1-2.md`](docs/guia-actividades-1-2.md).
+La guía completa para recrear el laboratorio está en [`docs/guia-actividades-1-2.md`](docs/guia-actividades-1-2.md). La formación privada para la presentación oral está fuera de Git y no se sube.
 
 ## Topología y direcciones
 
@@ -206,6 +217,6 @@ La documentación se limita a lo necesario para montar, probar y mantener el lab
 
 ## Próximos pasos
 
-1. Configurar y probar los servicios de red en los equipos ya desplegados.
-2. Añadir DHCP, DNS, directorio, impresoras, web, base de datos y el resto de servicios previstos.
-3. Revisar la seguridad y las políticas de acceso entre zona privada, DMZ y plantas.
+1. Actividad DHCP: Terraform + LXC `dhcp01` + Kea + relays DHCP en routers.
+2. Actividad DNS: Terraform + LXC `dns01` + BIND9 + zonas coherentes con Kea.
+3. Servicios de red y seguridad de acceso entre privada, DMZ y plantas.

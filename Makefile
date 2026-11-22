@@ -19,7 +19,7 @@ export TEMPLATE_AUDITOR_KEY TEMPLATE_SYSADMIN_KEY
 BASH_DIR := $(PROJECT_ROOT)/infrastructure/bash
 BOOTSTRAP_DIR := $(PROJECT_ROOT)/automation/scripts/bootstrap
 
-.PHONY: help deploy-routers delete-routers reset-routers reset_routers ssh-keys routeros-box create_templates resume_template deploy_pve01 deploy_equipment delete_equipment
+.PHONY: help deploy-routers delete-routers reset-routers reset_routers ssh-keys routeros-box create_templates resume_template deploy_pve01 deploy_equipment delete_equipment ansible-start-routers ansible-stop-routers configure-wireguard test-wireguard
 
 help:
 	@printf '%s\n' \
@@ -33,7 +33,11 @@ help:
 	  '  resume_template  Terminar un template Debian pausado' \
 	  '  deploy_pve01     Instalar y validar pve01 con Proxmox VE' \
 	  '  deploy_equipment Desplegar todo el equipamiento de VirtualCorp' \
-	  '  delete_equipment Eliminar el grupo de máquinas virtuales del equipamiento'
+	  '  delete_equipment Eliminar el grupo de máquinas virtuales del equipamiento' \
+	  '  ansible-start-routers Iniciar los routers con Ansible' \
+	  '  ansible-stop-routers  Parar los routers con Ansible' \
+	  '  configure-wireguard Configurar WireGuard en router0 y generar el cliente' \
+	  '  test-wireguard        Probar el acceso VPN desde pve01 y limpiar accesos temporales'
 
 deploy-routers:
 	"$(BASH_DIR)/deploy_routers.sh"
@@ -68,3 +72,17 @@ deploy_equipment:
 
 delete_equipment:
 	"$(BASH_DIR)/equipment/delete_equipment.sh"
+
+ANSIBLE_DIR := $(PROJECT_ROOT)/automation/ansible
+
+ansible-start-routers:
+	cd "$(ANSIBLE_DIR)" && ansible-playbook playbooks/start_routers.yml
+
+ansible-stop-routers:
+	cd "$(ANSIBLE_DIR)" && ansible-playbook playbooks/stop_routers.yml
+
+configure-wireguard:
+	cd "$(ANSIBLE_DIR)" && ansible-playbook playbooks/configure_wireguard.yml
+
+test-wireguard:
+	cd "$(ANSIBLE_DIR)" && ansible-playbook playbooks/test_wireguard_pve01.yml

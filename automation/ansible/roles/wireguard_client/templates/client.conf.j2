@@ -1,0 +1,9 @@
+[Interface]
+PrivateKey = {{ wg_client_private_key_content }}
+Address = {{ wg_client_address }}/24
+
+[Peer]
+PublicKey = {{ wg_server_public_key_content }}
+Endpoint = {{ wg_client_endpoint }}
+AllowedIPs = {{ wg_client_allowed_ips | join(', ') }}
+PersistentKeepalive = 25

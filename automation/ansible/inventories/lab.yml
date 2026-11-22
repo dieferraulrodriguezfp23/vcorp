@@ -1,0 +1,54 @@
+all:
+  vars:
+    vcorp_project_root: /home/ufmn/Documents/ASIX2/M0374/VirtualCorp-student
+    vcorp_private_key_file: /home/ufmn/.ssh/vcorp_sysadmin
+    vboxmanage_bin: /usr/bin/VBoxManage
+    vcorp_wg_secret_dir: /home/ufmn/Documents/ASIX2/M0374/VirtualCorp-student/artifacts/vpn
+    wg_endpoint_local: "127.0.0.1:51820"
+    wg_endpoint_internal: "10.22.0.225:51820"
+    router0_host: 127.0.0.1
+    router0_ssh_port: 2200
+    router0_user: sysadmin
+    router0_ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15"
+
+  children:
+    vbox:
+      hosts:
+        localhost:
+          ansible_connection: local
+          ansible_python_interpreter: /home/ufmn/.local/vcorp-tools/ansible-venv/bin/python
+          vboxmanage_bin: /usr/bin/VBoxManage
+          routers:
+            - router0
+            - router1
+            - router2
+            - router3
+
+    routeros:
+      children:
+        edge:
+          hosts:
+            router0:
+              ansible_connection: ansible.netcommon.network_cli
+              ansible_network_os: community.routeros.routeros
+              ansible_host: 127.0.0.1
+              ansible_port: 2200
+              ansible_user: sysadmin
+              ansible_command_timeout: 120
+              ansible_connect_timeout: 30
+              ansible_network_cli_ssh_type: paramiko
+              ansible_ssh_private_key_file: "{{ vcorp_private_key_file }}"
+
+    wg_clients:
+      hosts:
+        localhost:
+          ansible_connection: local
+
+    pve01_client:
+      hosts:
+        pve01:
+          ansible_host: 127.0.0.1
+          ansible_port: 2222
+          ansible_user: root
+          ansible_ssh_private_key_file: "{{ vcorp_private_key_file }}"
+          ansible_python_interpreter: /usr/bin/python3

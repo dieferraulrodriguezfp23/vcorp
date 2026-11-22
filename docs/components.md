@@ -16,6 +16,11 @@ Este documento explica qué hay en cada carpeta y para qué sirve cada fichero i
 │   └── tools/
 ├── automation/
 │   ├── ansible/
+│   │   ├── ansible.cfg
+│   │   ├── requirements.yml
+│   │   ├── inventories/
+│   │   ├── playbooks/
+│   │   └── roles/
 │   └── scripts/
 │       └── bootstrap/
 ├── configs/
@@ -39,7 +44,7 @@ Este documento explica qué hay en cada carpeta y para qué sirve cada fichero i
 | `artifacts/preseed/` | Scripts de postinstalación generados a partir de `configs/preseed/`. |
 | `artifacts/secrets/` | Contraseñas aleatorias de los templates. Git no las versiona. |
 | `artifacts/tools/` | Herramientas locales para preparar Proxmox cuando no están en el sistema. |
-| `automation/ansible/` | Reservado para Ansible. Ahora solo tiene `.gitkeep`. |
+| `automation/ansible/` | Ansible para iniciar/aturar routers y configurar WireGuard. |
 | `automation/scripts/bootstrap/` | Scripts de arranque anteriores a Ansible. |
 | `configs/inventory/` | Inventario declarativo de las máquinas que crea `deploy_equipment`. |
 | `configs/preseed/` | Preseeds de Debian Server y Desktop y plantilla de postinstalación. |
@@ -69,9 +74,21 @@ Este documento explica qué hay en cada carpeta y para qué sirve cada fichero i
 | `create_ssh_keys.sh` | Crea `vcorp_sysadmin` y `vcorp_mikrotik`. Las privadas se quedan en `~/.ssh` y las públicas se copian a `configs/ssh/`. La clave del profesor no se regenera. |
 | `create_mikrotik_box.sh` | Utilidad antigua para empaquetar RouterOS como caja de Vagrant. El despliegue actual no la usa. |
 
-### `automation/ansible/` e `infrastructure/terraform/`
+### `automation/ansible/`
 
-Solo tienen un `.gitkeep`. Todavía no hay playbooks de Ansible ni configuración de Terraform.
+| Fichero o carpeta | Para qué sirve |
+| --- | --- |
+| `ansible.cfg` | Configura el inventario, los roles y SSH para Ansible. |
+| `requirements.yml` | Declara las colecciones necesarias: `ansible.netcommon` y `community.routeros`. |
+| `inventories/lab.yml` | Inventario del laboratorio: routers para VBox, host SSH `router0` y host temporal `pve01`. |
+| `playbooks/start_routers.yml` | Arranca los routers con el rol `start_vm`. |
+| `playbooks/stop_routers.yml` | Apaga los routers con el rol `stop_vm`. |
+| `playbooks/configure_wireguard.yml` | Configura WireGuard en `router0` y genera los ficheros de cliente. |
+| `playbooks/test_wireguard_pve01.yml` | Valida el túnel usando `pve01` como cliente temporal y limpia los accesos. |
+| `roles/start_vm/` | Rol idempotente para iniciar una VM con `VBoxManage`. |
+| `roles/stop_vm/` | Rol idempotente para apagar una VM con ACPI. |
+| `roles/wireguard_server/` | Asegura interfaz, dirección, peer, firewall, RIP y port-forwarding de WireGuard en `router0`. |
+| `roles/wireguard_client/` | Genera ficheros de cliente WireGuard fuera de Git. |
 
 ### `configs/preseed/`
 
